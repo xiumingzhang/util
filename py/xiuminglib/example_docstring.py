@@ -1,12 +1,12 @@
 from os import makedirs
 from os.path import exists, dirname
 
-def toHTML(dict2D, outPath):
+def toHTML(table, outPath):
     """
-    Generate an HTML table of media from the given 2D dictionary.
+    Generate an HTML table of media from the given 2D list.
 
     Args:
-        dict2D: dictionary of dictionaries.
+        table: list of lists.
             Dictionary keys are row or column headers; values are paths to media.
             The first dimension corresponds to row; the second to columns.
         outPath: path to the generated HTML.
