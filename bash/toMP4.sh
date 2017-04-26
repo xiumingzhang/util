@@ -2,7 +2,7 @@
 
 if [ "$#" -ne 2 ]; then
     echo "Exactly two arguments required!"
-    echo "    1. Single-quoted regex (e.g., '*.mp4', '*_azimuth0.png')"
+    echo "    1. Single-quoted regex (e.g., '*.png', '???.png', etc.)"
     echo "    2. Frame rate"
     exit 1
 fi
