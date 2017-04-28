@@ -24,7 +24,7 @@ fi
 
 timeout ${TIMEOUT} ssh -q ${user}@vision${i}.csail.mit.edu exit
 if [ $? -eq 124 ]; then
-    echo 1
+    echo dead
 else
-    echo 0
+    echo alive
 fi
