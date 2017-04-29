@@ -31,7 +31,8 @@ for ID in ${CPUList[@]}; do
     # Kill
     if [[ ${toKill} == 1 ]]; then
         printf -v ID "%02d" ${ID}
-        ssh ${user}@vision${ID}.csail.mit.edu "pkill -9 -u ${user}"
+        ssh ${user}@vision${ID}.csail.mit.edu "pkill -9 -u ${user}" &
+        echo "Kill signal sent to vision${ID}"
     fi
 done
 
@@ -49,6 +50,7 @@ for ID in ${GPUList[@]}; do
     # Kill
     if [[ ${toKill} == 1 ]]; then
         printf -v ID "gpu%02d" ${ID}
-        ssh ${user}@vision${ID}.csail.mit.edu "pkill -9 -u ${user}"
+        ssh ${user}@vision${ID}.csail.mit.edu "pkill -9 -u ${user}" &
+        echo "Kill signal sent to vision${ID}"
     fi
 done

@@ -22,9 +22,10 @@ else
     exit 1
 fi
 
-timeout ${TIMEOUT} ssh -q ${user}@vision${i}.csail.mit.edu exit
+timeout ${TIMEOUT} ssh -q ${user}@vision${i}.csail.mit.edu "exit"
 if [ $? -eq 124 ]; then
     echo dead
 else
     echo alive
 fi
+
