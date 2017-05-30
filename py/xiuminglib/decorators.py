@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 import time
 import os
 import logging
@@ -18,24 +16,28 @@ def timeIt(someFunc):
         results = someFunc(*arg, **kwargs)
         t = time.time() - t0
         funcName = someFunc.__name__
-        logging.info("%s: Function %s takes %.2f seconds" % (thisFile, funcName, t))
+        logging.info(
+            "%s: Function %s takes %.2f seconds", thisFile, funcName, t
+        )
         return results
     return wrapper
 
 
-def existOK(makedirs):
+def existOK(makedirsFunc):
     """
-    Implements the exist_ok flag in >= Python 3.2, which avoids race conditions,
-    where one parallel worker checks the folder doesn't exist and wants to create
-    it with another worker doing so faster
+    Implements the exist_ok flag in >= 3.2, which avoids race conditions,
+    where one parallel worker checks the folder doesn't exist and wants to
+    create it with another worker doing so faster
     """
     def wrapper(*args, **kwargs):
         try:
-            makedirs(*args, **kwargs)
-        except OSError, e:
+            makedirsFunc(*args, **kwargs)
+        except OSError as e:
             if e.errno != 17:
                 raise
-            logging.debug("%s: %s already exists, but that is OK" % (thisFile, args[0]))
+            logging.debug(
+                "%s: %s already exists, but that is OK", thisFile, args[0]
+            )
     return wrapper
 
 
