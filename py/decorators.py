@@ -44,7 +44,7 @@ if __name__ == '__main__':
         time.sleep(1)
         return x + y, x + z, y + z, x + y + z
     print(findsums(1, 2, 3))
-    # existOK
+    # existok
     newDir = os.path.join(os.path.dirname(__file__), 'test')
     makedirs = existok(os.makedirs)
     makedirs(newDir)
