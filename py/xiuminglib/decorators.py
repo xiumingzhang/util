@@ -1,9 +1,8 @@
 import time
 import os
-
 import logging
 logging.basicConfig(level=logging.INFO)
-thisFile = os.path.abspath(__file__)
+thisfile = os.path.abspath(__file__)
 
 
 def timeit(somefunc):
@@ -15,7 +14,7 @@ def timeit(somefunc):
         results = somefunc(*arg, **kwargs)
         t = time.time() - t0
         funcname = somefunc.__name__
-        logging.info("%s: Function %s takes %.2f seconds", thisFile, funcname, t)
+        logging.info("%s: Function %s takes %.2f seconds", thisfile, funcname, t)
         return results
     return wrapper
 
@@ -32,7 +31,7 @@ def existok(makedirs_func):
         except OSError as e:
             if e.errno != 17:
                 raise
-            logging.debug("%s: %s already exists, but that is OK", thisFile, args[0])
+            logging.debug("%s: %s already exists, but that is OK", thisfile, args[0])
     return wrapper
 
 
@@ -45,7 +44,7 @@ if __name__ == '__main__':
         return x + y, x + z, y + z, x + y + z
     print(findsums(1, 2, 3))
     # existok
-    newDir = os.path.join(os.path.dirname(__file__), 'test')
+    newdir = os.path.join(os.path.dirname(__file__), 'test')
     makedirs = existok(os.makedirs)
-    makedirs(newDir)
-    makedirs(newDir)
+    makedirs(newdir)
+    makedirs(newdir)
