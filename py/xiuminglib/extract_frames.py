@@ -5,6 +5,7 @@ import logging
 from shutil import rmtree
 from cv2 import imwrite, VideoCapture
 
+
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
