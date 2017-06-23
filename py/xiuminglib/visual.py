@@ -17,6 +17,8 @@ def matrix_as_heatmap(mat, outpath=None):
 
     Args:
         mat: 2D numpy array
+        outpath: path string
+            If not given, visualization is saved to './heatmap.png'
 
     Returns:
         None

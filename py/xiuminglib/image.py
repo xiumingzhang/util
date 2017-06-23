@@ -124,8 +124,8 @@ def interp2(im, query_pts):
         z = im
         spline_obj = RectBivariateSpline(x, y, z)
         logging.info("%s: Interpolation started", thisfile)
-        interp_val = spline_obj.__call__(query_x, query_y, grid=False)
-        logging.info("%s: Interpolation done", thisfile)
+        interp_val = spline_obj(query_x, query_y, grid=False)
+        logging.info("%s:     ... done", thisfile)
     else: # Multiple channels
         warn("Support for 'im' having multiple channels has not been thoroughly tested!")
         interp_val = np.zeros((len(query_x), c))
@@ -133,7 +133,7 @@ def interp2(im, query_pts):
             z = im[:, :, i]
             spline_obj = RectBivariateSpline(x, y, z)
             logging.info("%s: Interpolation started for channel %d/%d", thisfile, i + 1, c)
-            interp_val[:, i] = spline_obj.__call__(query_x, query_y, grid=False)
-            logging.info("%s: Interpolation done for channel %d/%d", thisfile, i + 1, c)
+            interp_val[:, i] = spline_obj(query_x, query_y, grid=False)
+            logging.info("%s:     ... done", thisfile)
 
     return interp_val

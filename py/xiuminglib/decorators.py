@@ -11,11 +11,12 @@ def timeit(somefunc):
     Outputs the time a function takes to execute
     """
     def wrapper(*arg, **kwargs):
+        funcname = somefunc.__name__
+        logging.info("%s: Function %s started", thisfile, funcname)
         t0 = time()
         results = somefunc(*arg, **kwargs)
         t = time() - t0
-        funcname = somefunc.__name__
-        logging.info("%s: Function %s takes %.2f seconds", thisfile, funcname, t)
+        logging.info("%s: Function %s done in %.2f seconds", thisfile, funcname, t)
         return results
     return wrapper
 
