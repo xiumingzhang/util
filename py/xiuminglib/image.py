@@ -5,10 +5,15 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
+from os.path import abspath
 from warnings import warn
+import logging
 import numpy as np
 import cv2
 from scipy.interpolate import RectBivariateSpline
+
+logging.basicConfig(level=logging.INFO)
+thisfile = abspath(__file__)
 
 
 def binarize(im):
@@ -118,13 +123,17 @@ def interp2(im, query_pts):
     if c == 1: # Single channel
         z = im
         spline_obj = RectBivariateSpline(x, y, z)
+        logging.info("%s: Interpolation started", thisfile)
         interp_val = spline_obj.__call__(query_x, query_y, grid=False)
+        logging.info("%s: Interpolation done", thisfile)
     else: # Multiple channels
         warn("Support for 'im' having multiple channels has not been thoroughly tested!")
         interp_val = np.zeros((len(query_x), c))
         for i in range(c):
             z = im[:, :, i]
             spline_obj = RectBivariateSpline(x, y, z)
+            logging.info("%s: Interpolation started for channel %d/%d", thisfile, i + 1, c)
             interp_val[:, i] = spline_obj.__call__(query_x, query_y, grid=False)
+            logging.info("%s: Interpolation done for channel %d/%d", thisfile, i + 1, c)
 
     return interp_val

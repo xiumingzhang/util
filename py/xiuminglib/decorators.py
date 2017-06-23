@@ -1,8 +1,9 @@
-import time
-import os
+from time import time, sleep
+from os import makedirs
+from os.path import abspath, join, dirname
 import logging
 logging.basicConfig(level=logging.INFO)
-thisfile = os.path.abspath(__file__)
+thisfile = abspath(__file__)
 
 
 def timeit(somefunc):
@@ -10,9 +11,9 @@ def timeit(somefunc):
     Outputs the time a function takes to execute
     """
     def wrapper(*arg, **kwargs):
-        t0 = time.time()
+        t0 = time()
         results = somefunc(*arg, **kwargs)
-        t = time.time() - t0
+        t = time() - t0
         funcname = somefunc.__name__
         logging.info("%s: Function %s takes %.2f seconds", thisfile, funcname, t)
         return results
@@ -40,11 +41,11 @@ if __name__ == '__main__':
     # timeit
     @timeit
     def findsums(x, y, z):
-        time.sleep(1)
+        sleep(1)
         return x + y, x + z, y + z, x + y + z
     print(findsums(1, 2, 3))
     # existok
-    newdir = os.path.join(os.path.dirname(__file__), 'test')
-    makedirs = existok(os.makedirs)
+    newdir = join(dirname(__file__), 'test')
+    makedirs = existok(makedirs)
     makedirs(newdir)
     makedirs(newdir)
