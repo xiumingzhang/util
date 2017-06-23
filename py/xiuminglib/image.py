@@ -5,8 +5,10 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
+from warnings import warn
 import numpy as np
 import cv2
+from scipy.interpolate import RectBivariateSpline
 
 
 def binarize(im):
@@ -73,3 +75,56 @@ def remove_islands(im, connectivity, min_n_pixels):
             im_clean[labelmap == i] = bgval
 
     return im_clean
+
+
+def interp2(im, query_pts):
+    """
+    Query interpolated values of float lactions (bivariate spline approximation)
+
+    Args:
+        im: h-by-w or h-by-w-by-c numpy array
+            Each channel is interpolated independently.
+        query_pts: n-by-2 numpy array
+            +-----------> dim1
+            |
+            |
+            |
+            v dim0
+
+    Returns:
+        interp_val: n-by-c numpy array
+    """
+
+    # Figure out image size and number of channels
+    if len(im.shape) == 3:
+        h, w, c = im.shape
+        if c == 1: # single dimension
+            im = im[:, :, 0]
+    elif len(im.shape) == 2:
+        h, w = im.shape
+        c = 1
+    else:
+        raise ValueError("'im' must have either two or three dimensions")
+
+    # Validate inputs
+    assert (len(query_pts.shape) == 2), "'query_pts' must have exactly two dimensions"
+    assert (query_pts.shape[1] == 2), "Second dimension of 'query_pts' must be 2"
+
+    x = np.arange(h)
+    y = np.arange(w)
+    query_x = query_pts[:, 0]
+    query_y = query_pts[:, 1]
+
+    if c == 1: # Single channel
+        z = im
+        spline_obj = RectBivariateSpline(x, y, z)
+        interp_val = spline_obj.__call__(query_x, query_y, grid=False)
+    else: # Multiple channels
+        warn("Support for 'im' having multiple channels has not been thoroughly tested!")
+        interp_val = np.zeros((len(query_x), c))
+        for i in range(c):
+            z = im[:, :, i]
+            spline_obj = RectBivariateSpline(x, y, z)
+            interp_val[:, i] = spline_obj.__call__(query_x, query_y, grid=False)
+
+    return interp_val
