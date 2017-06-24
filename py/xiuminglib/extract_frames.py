@@ -1,10 +1,16 @@
+"""
+Command Line Tool -- Extract Frames from Video
+
+Xiuming Zhang, MIT CSAIL
+May 2017
+"""
+
 import argparse
 from os import makedirs
 from os.path import exists, join, abspath
 import logging
 from shutil import rmtree
 from cv2 import imwrite, VideoCapture
-
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)

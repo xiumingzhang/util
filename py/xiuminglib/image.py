@@ -99,6 +99,7 @@ def interp2(im, query_pts):
     Returns:
         interp_val: n-by-c numpy array
     """
+    thisfunc = thisfile + '->interp2()'
 
     # Figure out image size and number of channels
     if len(im.shape) == 3:
@@ -123,17 +124,17 @@ def interp2(im, query_pts):
     if c == 1: # Single channel
         z = im
         spline_obj = RectBivariateSpline(x, y, z)
-        logging.info("%s: Interpolation started", thisfile)
+        logging.info("%s: Interpolation started", thisfunc)
         interp_val = spline_obj(query_x, query_y, grid=False)
-        logging.info("%s:     ... done", thisfile)
+        logging.info("%s:     ... done", thisfunc)
     else: # Multiple channels
         warn("Support for 'im' having multiple channels has not been thoroughly tested!")
         interp_val = np.zeros((len(query_x), c))
         for i in range(c):
             z = im[:, :, i]
             spline_obj = RectBivariateSpline(x, y, z)
-            logging.info("%s: Interpolation started for channel %d/%d", thisfile, i + 1, c)
+            logging.info("%s: Interpolation started for channel %d/%d", thisfunc, i + 1, c)
             interp_val[:, i] = spline_obj(query_x, query_y, grid=False)
-            logging.info("%s:     ... done", thisfile)
+            logging.info("%s:     ... done", thisfunc)
 
     return interp_val
