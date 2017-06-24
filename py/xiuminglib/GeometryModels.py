@@ -99,12 +99,14 @@ class Obj(object):
             else: # all
                 n_fn, n_ft = n_f, n_f
 
+        logging.info("%s: -----------------------------------", thisfunc)
         logging.info("%s: # geometric vertices:      %d", thisfunc, n_v)
         logging.info("%s: # texture vertex:          %d", thisfunc, n_vt)
         logging.info("%s: # vertex normals:          %d", thisfunc, n_vn)
         logging.info("%s: # geometric faces:         %d", thisfunc, n_f)
         logging.info("%s: # texture faces:           %d", thisfunc, n_ft)
         logging.info("%s: # normal faces:            %d", thisfunc, n_fn)
+        logging.info("%s: -----------------------------------", thisfunc)
 
         # Initialize arrays
         v = np.zeros((n_v, 3))
@@ -180,6 +182,7 @@ class Obj(object):
         n_fn = len(self.fn) if self.fn is not None else 0
         s = self.s
 
+        logging.info("%s: --------------------------------------------", thisfunc)
         logging.info("%s: Object name 'o':               %s", thisfunc, name)
         logging.info("%s: # geometric vertices 'v':      %d", thisfunc, n_v)
         logging.info("%s: # texture vertices 'vt':       %d", thisfunc, n_vt)
@@ -197,8 +200,10 @@ class Obj(object):
             for c in np.unique(vert_counts):
                 howmany = vert_counts.count(c)
                 logging.info("%s:   - %d are formed by %d vertices", thisfunc, howmany, c)
+        logging.info("%s: --------------------------------------------", thisfunc)
 
 
+# Test
 if __name__ == '__main__':
     objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/moon.obj'
     obj = Obj()
