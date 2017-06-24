@@ -6,7 +6,8 @@ June 2017
 """
 
 import logging
-from os.path import abspath
+from os import makedirs
+from os.path import abspath, dirname, exists
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +18,7 @@ class Obj(object):
     """
     Wavefront .obj format
     """
+
     def __init__(self, name=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False):
         """
         Class constructor
@@ -62,6 +64,7 @@ class Obj(object):
         self.fn = fn
         self.s = s
 
+    # Populate attributes with contents read from file
     def load_file(self, obj_file):
         """
         Load a (basic) .obj file as an object
@@ -76,8 +79,8 @@ class Obj(object):
         thisfunc = thisfile + '->load_file()'
 
         # Stats
-        f = open(obj_file, 'r')
-        lines = [l.strip('\n') for l in f.readlines()]
+        fid = open(obj_file, 'r')
+        lines = [l.strip('\n') for l in fid.readlines()]
         n_o = len([l for l in lines if l[0] == 'o'])
         if n_o > 1:
             raise ValueError(".obj file containing multiple objects is not supported -- consider using 'assimp' instead")
@@ -101,7 +104,7 @@ class Obj(object):
 
         logging.info("%s: -----------------------------------", thisfunc)
         logging.info("%s: # geometric vertices:      %d", thisfunc, n_v)
-        logging.info("%s: # texture vertex:          %d", thisfunc, n_vt)
+        logging.info("%s: # texture vertices         %d", thisfunc, n_vt)
         logging.info("%s: # vertex normals:          %d", thisfunc, n_vn)
         logging.info("%s: # geometric faces:         %d", thisfunc, n_f)
         logging.info("%s: # texture faces:           %d", thisfunc, n_ft)
@@ -169,6 +172,7 @@ class Obj(object):
         self.s = s
         return self
 
+    # Print model info
     def print_info(self):
         thisfunc = thisfile + '->print_info()'
 
@@ -202,12 +206,121 @@ class Obj(object):
                 logging.info("%s:   - %d are formed by %d vertices", thisfunc, howmany, c)
         logging.info("%s: --------------------------------------------", thisfunc)
 
+    # Set vn and fn according to v and f
+    def set_face_normals(self):
+        """
+        Set face normals according to geometric vertices and their orders in forming faces
+
+        Returns:
+            vn: Normal vectors
+                n-by-3 numpy arrays, where n is 'self.f.shape[0]'
+            fn: Normal faces
+                List of lists of integers starting from 1
+                Each member list consists of the same integer, e.g., '[[1, 1, 1], [2, 2, 2, 2], ...]'
+        """
+        thisfunc = thisfile + '->set_face_normals()'
+
+        n_f = len(self.f)
+        vn = np.zeros((n_f, 3))
+        fn = [None] * n_f
+
+        # For each face
+        for i, verts_id in enumerate(self.f):
+            # Vertices must be coplanar to be valid, so we can just pick the first three
+            ind = [x - 1 for x in verts_id[:3]] # in .obj, index starts from 1, not 0
+            verts = self.v[ind, :]
+            p1p2 = verts[1, :] - verts[0, :]
+            p1p3 = verts[2, :] - verts[0, :]
+            normal = np.cross(p1p2, p1p3)
+            vn[i, :] = normal / np.linalg.norm(normal) # normalize
+            fn[i] = [i + 1] * len(verts_id)
+
+        # Set normals and return
+        self.vn = vn
+        self.fn = fn
+        logging.info("%s: Face normals recalculated with 'v' and 'f' -- 'vn' and 'fn' updated", thisfunc)
+        return vn, fn
+
+    # Output object to a .obj file
+    def write_file(self, objpath):
+        """
+        Write the current model to a .obj file (and possibly an accompanying .mtl)
+        """
+        thisfunc = thisfile + '->write_file()'
+
+        name = self.name
+        v, vt, vn = self.v, self.vt, self.vn
+        f, ft, fn = self.f, self.ft, self.fn
+        s = self.s
+
+        # Validate inputs
+        assert (v is not None and len(v.shape) == 2 and v.shape[1] == 3), "'v' must be *-by-3 and not be None"
+        assert (f is not None), "'f' can't be None"
+        if ft is not None:
+            assert (len(f) == len(ft)), "'ft' and 'f' must have the same length"
+        if fn is not None:
+            assert (len(f) == len(fn)), "'fn' and 'f' must have the same length"
+        assert isinstance(s, bool), "'s' must be Boolean"
+
+        # mkdir if necessary
+        outdir = dirname(objpath)
+        if not exists(outdir):
+            makedirs(outdir)
+
+        # Write .obj
+        with open(objpath, 'w') as fid:
+            fid.write('o %s\n' % name)
+
+            # Vertices
+            for i in range(v.shape[0]):
+                fid.write('v %f %f %f\n' % tuple(v[i, :]))
+            if vt is not None:
+                for i in range(vt.shape[0]):
+                    fid.write('vt %f %f\n' % tuple(vt[i, :]))
+            if vn is not None:
+                for i in range(vn.shape[0]):
+                    fid.write('vn %f %f %f\n' % tuple(vn[i, :]))
+
+            # Group smoothing
+            if s:
+                fid.write('s on\n')
+            else:
+                fid.write('s off\n')
+
+            # Faces
+            if ft is None and fn is None: # just f
+                for v_id in f:
+                    fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
+            elif ft is not None and fn is None: # f and ft
+                for i, v_id in enumerate(f):
+                    vt_id = ft[i]
+                    assert (len(v_id) == len(vt_id)), "'f[%d]' and 'ft[%d]' are of different lengths" % (i, i)
+                    fid.write(('f' + ' %d/%d' * len(v_id) + '\n') %
+                              tuple([x for pair in zip(v_id, vt_id) for x in pair]))
+            elif ft is None and fn is not None: # f and fn
+                for i, v_id in enumerate(f):
+                    vn_id = fn[i]
+                    assert (len(v_id) == len(vn_id)), "'f[%d]' and 'fn[%d]' are of different lengths" % (i, i)
+                    fid.write(('f' + ' %d//%d' * len(v_id) + '\n') %
+                              tuple([x for pair in zip(v_id, vn_id) for x in pair]))
+            elif ft is not None and fn is not None: # all
+                for i, v_id in enumerate(f):
+                    vt_id = ft[i]
+                    vn_id = fn[i]
+                    assert (len(v_id) == len(vt_id)), "'f[%d]' and 'ft[%d]' are of different lengths" % (i, i)
+                    assert (len(v_id) == len(vn_id)), "'f[%d]' and 'fn[%d]' are of different lengths" % (i, i)
+                    fid.write(('f' + ' %d/%d/%d' * len(v_id) + '\n') %
+                              tuple([x for triple in zip(v_id, vt_id, vn_id) for x in triple]))
+        logging.info("%s: Done writing to %s", thisfunc, objpath)
+
 
 # Test
 if __name__ == '__main__':
     objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/moon.obj'
     obj = Obj()
     obj.print_info()
-    obj = obj.load_file(objf)
+    obj.load_file(objf)
+    obj.set_face_normals()
     obj.print_info()
-    import pdb; pdb.set_trace()
+    objf_mod = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/moon_mod.obj'
+    obj.write_file(objf_mod)
