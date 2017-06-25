@@ -1,5 +1,5 @@
 """
-Classes of Common 3D Geometry Models
+Class for Obj and Mtl
 
 Xiuming Zhang, MIT CSAIL
 June 2017
@@ -15,10 +15,6 @@ thisfile = abspath(__file__)
 
 
 class Obj(object):
-    """
-    Wavefront .obj format
-    """
-
     def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False, mtllib=None, usemtl=None):
         """
         Class constructor
@@ -266,10 +262,10 @@ class Obj(object):
         logging.info("%s: Face normals recalculated with 'v' and 'f' -- 'vn' and 'fn' updated", thisfunc)
         return vn, fn
 
-    # Output object to a .obj file
+    # Output object to file
     def write_file(self, objpath):
         """
-        Write the current model to a .obj file (and possibly an accompanying .mtl)
+        Write the current model to a .obj file
         """
         thisfunc = thisfile + '->write_file()'
 
@@ -358,10 +354,19 @@ class Obj(object):
         logging.info("%s: Done writing to %s", thisfunc, objpath)
 
 
+# class Mtl(object):
+#        if mtllib is not None and usemtl is not None:
+#            if diffuse_map_path is not None:
+#
+#           else:
+#       else:
+#            warn("No .mtl file generated, as one of or both 'mtllib' and 'usemtl' is 'None'")
+
+
 # Test
 if __name__ == '__main__':
     objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/icosphere2.obj'
-    # objf = './example-obj-mtl/cube.obj'
+    # objf = '../example-obj-mtl/cube.obj'
     obj = Obj()
     obj.print_info()
     obj.load_file(objf)
