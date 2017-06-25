@@ -31,37 +31,48 @@ class Obj(object):
                 *-by-3 numpy array of floats
                 Optional; defaults to None
             f: Faces' vertex indices
-                List of lists of integers starting from 1
+                List of lists of integers starting from 1, e.g., '[[1, 2, 3], [4, 5, 6], [7, 8, 9, 10], ...]'
                 Optional; defaults to None
             vn: Vertex normals
                 *-by-3 numpy array of floats, normalized or unnormalized
                 Optional; defaults to None
             fn: Faces' vertex normal indices
-                Same type and size as 'f'
+                Same type and length as 'f', e.g., '[[1, 1, 1], [], [2, 2, 2, 2], ...]'
                 Optional; defaults to None
             vt: Vertex texture coordinates
                 *-by-2 numpy array of floats in [0, 1]
                 Optional; defaults to None
             ft: Faces' texture vertex indices
-                Same type and size as 'f'
+                Same type and length as 'f', e.g., '[[1, 2, 3], [4, 5, 6], [], ...]'
                 Optional; defaults to None
             s: Group smoothing
                 Boolean
                 Optional; defaults to False
         """
         self.name = name
+
+        # Vertices
         if v is not None:
             assert (len(v.shape) == 2 and v.shape[1] == 3), "'v' must be *-by-3"
-        self.v = v
         if vn is not None:
             assert (len(vn.shape) == 2 and vn.shape[1] == 3), "'vn' must be *-by-3"
-        self.vn = vn
         if vt is not None:
             assert (len(vt.shape) == 2 and vt.shape[1] == 2), "'vt' must be *-by-2"
+        self.v = v
         self.vt = vt
+        self.vn = vn
+
+        # Faces
+        if f is not None:
+            if ft is not None:
+                assert (len(ft) == len(f)), "'ft' must be of the same length as 'f' (use '[]' to fill)"
+            if fn is not None:
+                assert (len(fn) == len(f)), "'fn' must be of the same length as 'f' (use '[]' to fill)"
         self.f = f
         self.ft = ft
         self.fn = fn
+
+        # Group smoothing
         self.s = s
 
     # Populate attributes with contents read from file
