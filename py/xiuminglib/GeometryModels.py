@@ -89,49 +89,35 @@ class Obj(object):
         """
         thisfunc = thisfile + '->load_file()'
 
-        # Stats
         fid = open(obj_file, 'r')
         lines = [l.strip('\n') for l in fid.readlines()]
+        lines = [l for l in lines if len(l) > 0] # remove empty lines
+
+        # Check if there's only one object
         n_o = len([l for l in lines if l[0] == 'o'])
         if n_o > 1:
             raise ValueError(".obj file containing multiple objects is not supported -- consider using 'assimp' instead")
+
+        # Count for array initializations
         n_v = len([l for l in lines if l[:2] == 'v '])
         n_vt = len([l for l in lines if l[:3] == 'vt '])
         n_vn = len([l for l in lines if l[:3] == 'vn '])
         lines_f = [l for l in lines if l[:2] == 'f ']
         n_f = len(lines_f)
-        n_slashes = lines_f[0].split(' ')[1].count('/')
-        if n_slashes == 0: # just f
-            n_fn, n_ft = 0, 0
-        elif n_slashes == 1: # f and ft
-            n_fn = 0
-            n_ft = n_f
-        elif n_slashes == 2:
-            if lines_f[0].split(' ')[1].count('//') == 1: # f and fn
-                n_fn = n_f
-                n_ft = 0
-            else: # all
-                n_fn, n_ft = n_f, n_f
-
-        logging.info("%s: -----------------------------------", thisfunc)
-        logging.info("%s: # geometric vertices:      %d", thisfunc, n_v)
-        logging.info("%s: # texture vertices         %d", thisfunc, n_vt)
-        logging.info("%s: # vertex normals:          %d", thisfunc, n_vn)
-        logging.info("%s: # geometric faces:         %d", thisfunc, n_f)
-        logging.info("%s: # texture faces:           %d", thisfunc, n_ft)
-        logging.info("%s: # normal faces:            %d", thisfunc, n_fn)
-        logging.info("%s: -----------------------------------", thisfunc)
 
         # Initialize arrays
         v = np.zeros((n_v, 3))
         vt = np.zeros((n_vt, 2))
         vn = np.zeros((n_vn, 3))
         f = [None] * n_f
-        ft = [None] * n_ft
-        fn = [None] * n_fn
+        # If there's no 'ft' or 'fn' for a 'f', a '[]' is inserted as a placeholder
+        # This guarantees 'f[i]' always corresponds to 'ft[i]' and 'fn[i]'
+        ft = [None] * n_f
+        fn = [None] * n_f
 
         # Load data line by line
-        i_v, i_vt, i_vn, i_f, i_ft, i_fn = 0, 0, 0, 0, 0, 0
+        n_ft, n_fn = 0, 0
+        i_v, i_vt, i_vn, i_f = 0, 0, 0, 0
         for i, l in enumerate(lines):
             if l[0] == '#': # comment
                 pass
@@ -147,30 +133,43 @@ class Obj(object):
                 vn[i_vn, :] = [float(x) for x in l[3:].split(' ')]
                 i_vn += 1
             elif l[:2] == 'f ': # face
-                if n_ft == 0 and n_fn == 0: # 1 2 3
+                n_slashes = l[2:].split(' ')[0].count('/')
+                if n_slashes == 0: # just f (1 2 3)
                     f[i_f] = [int(x) for x in l[2:].split(' ')]
-                    i_f += 1
-                elif n_ft > 0 and n_fn == 0: # 1/1 2/2 3/3
+                    ft[i_f] = []
+                    fn[i_f] = []
+                elif n_slashes == 1: # f and ft (1/1 2/2 3/3)
                     f[i_f] = [int(x.split('/')[0]) for x in l[2:].split(' ')]
-                    i_f += 1
-                    ft[i_ft] = [int(x.split('/')[1]) for x in l[2:].split(' ')]
-                    i_ft += 1
-                elif n_ft == 0 and n_fn > 0: # 1//1 2//2 3//3
-                    f[i_f] = [int(x.split('//')[0]) for x in l[2:].split(' ')]
-                    i_f += 1
-                    fn[i_fn] = [int(x.split('//')[1]) for x in l[2:].split(' ')]
-                    i_fn += 1
-                else: # 1/1/1 2/2/2 3/3/3
-                    f[i_f] = [int(x.split('/')[0]) for x in l[2:].split(' ')]
-                    i_f += 1
-                    ft[i_ft] = [int(x.split('/')[1]) for x in l[2:].split(' ')]
-                    i_ft += 1
-                    fn[i_fn] = [int(x.split('/')[2]) for x in l[2:].split(' ')]
-                    i_fn += 1
+                    ft[i_f] = [int(x.split('/')[1]) for x in l[2:].split(' ')]
+                    fn[i_f] = []
+                    n_ft += 1
+                elif n_slashes == 2:
+                    if l[2:].split(' ')[0].count('//') == 1: # f and fn (1//1 2//1 3//1)
+                        f[i_f] = [int(x.split('//')[0]) for x in l[2:].split(' ')]
+                        ft[i_f] = []
+                        fn[i_f] = [int(x.split('//')[1]) for x in l[2:].split(' ')]
+                        n_fn += 1
+                    else: # f, ft and fn (1/1/1 2/2/1 3/3/1)
+                        f[i_f] = [int(x.split('/')[0]) for x in l[2:].split(' ')]
+                        ft[i_f] = [int(x.split('/')[1]) for x in l[2:].split(' ')]
+                        fn[i_f] = [int(x.split('/')[2]) for x in l[2:].split(' ')]
+                        n_ft += 1
+                        n_fn += 1
+                i_f += 1
             elif l[:2] == 's ': # group smoothing
                 s = True if l[2:] == 'on' else False
             else:
                 raise ValueError("Unidentified line type at line %d" % (i + 1))
+
+        # Report
+        logging.info("%s: -----------------------------------", thisfunc)
+        logging.info("%s: # geometric vertices:      %d", thisfunc, n_v)
+        logging.info("%s: # texture vertices         %d", thisfunc, n_vt)
+        logging.info("%s: # vertex normals:          %d", thisfunc, n_vn)
+        logging.info("%s: # geometric faces:         %d", thisfunc, n_f)
+        logging.info("%s: # texture faces:           %d", thisfunc, n_ft)
+        logging.info("%s: # normal faces:            %d", thisfunc, n_fn)
+        logging.info("%s: -----------------------------------", thisfunc)
 
         # Update self
         self.name = name
@@ -178,8 +177,8 @@ class Obj(object):
         self.vt = vt if vt.shape[0] > 0 else None
         self.vn = vn if vn.shape[0] > 0 else None
         self.f = f
-        self.ft = ft if len(ft) > 0 else None
-        self.fn = fn if len(fn) > 0 else None
+        self.ft = ft if any(len(x) > 0 for x in ft) else None
+        self.fn = fn if any(len(x) > 0 for x in fn) else None
         self.s = s
         return self
 
@@ -193,19 +192,25 @@ class Obj(object):
         n_vt = self.vt.shape[0] if self.vt is not None else 0
         n_vn = self.vn.shape[0] if self.vn is not None else 0
         n_f = len(self.f) if self.f is not None else 0
-        n_ft = len(self.ft) if self.ft is not None else 0
-        n_fn = len(self.fn) if self.fn is not None else 0
+        if self.ft is not None:
+            n_ft = sum(len(x) > 0 for x in self.ft)
+        else:
+            n_ft = 0
+        if self.fn is not None:
+            n_fn = sum(len(x) > 0 for x in self.fn)
+        else:
+            n_fn = 0
         s = self.s
 
-        logging.info("%s: --------------------------------------------", thisfunc)
-        logging.info("%s: Object name 'o':               %s", thisfunc, name)
-        logging.info("%s: # geometric vertices 'v':      %d", thisfunc, n_v)
-        logging.info("%s: # texture vertices 'vt':       %d", thisfunc, n_vt)
-        logging.info("%s: # normal vectors 'vn':         %d", thisfunc, n_vn)
-        logging.info("%s: # geometric faces 'f x/o/o':   %d", thisfunc, n_f)
-        logging.info("%s: # texture faces 'f o/x/o':     %d", thisfunc, n_ft)
-        logging.info("%s: # normal faces 'f o/o/x':      %d", thisfunc, n_fn)
-        logging.info("%s: Group smoothing 's':           %r", thisfunc, s)
+        logging.info("%s: -------------------------------------------------------", thisfunc)
+        logging.info("%s: Object name            'o'            %s", thisfunc, name)
+        logging.info("%s: # geometric vertices   'v'            %d", thisfunc, n_v)
+        logging.info("%s: # texture vertices     'vt'           %d", thisfunc, n_vt)
+        logging.info("%s: # normal vectors       'vn'           %d", thisfunc, n_vn)
+        logging.info("%s: # geometric faces      'f x/o/o'      %d", thisfunc, n_f)
+        logging.info("%s: # texture faces        'f o/x/o'      %d", thisfunc, n_ft)
+        logging.info("%s: # normal faces         'f o/o/x'      %d", thisfunc, n_fn)
+        logging.info("%s: Group smoothing        's'            %r", thisfunc, s)
 
         # How many triangles, quads, etc.
         if n_f > 0:
@@ -215,7 +220,7 @@ class Obj(object):
             for c in np.unique(vert_counts):
                 howmany = vert_counts.count(c)
                 logging.info("%s:   - %d are formed by %d vertices", thisfunc, howmany, c)
-        logging.info("%s: --------------------------------------------", thisfunc)
+        logging.info("%s: -------------------------------------------------------", thisfunc)
 
     # Set vn and fn according to v and f
     def set_face_normals(self):
@@ -327,11 +332,13 @@ class Obj(object):
 
 # Test
 if __name__ == '__main__':
-    objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/moon.obj'
+    # objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/icosphere2.obj'
+    objf = './example-obj-mtl/cube.obj'
     obj = Obj()
     obj.print_info()
     obj.load_file(objf)
-    obj.set_face_normals()
     obj.print_info()
-    objf_mod = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/moon_mod.obj'
-    obj.write_file(objf_mod)
+    #obj.set_face_normals()
+    #obj.print_info()
+    #objf_mod = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/moon_mod.obj'
+    #obj.write_file(objf_mod)
