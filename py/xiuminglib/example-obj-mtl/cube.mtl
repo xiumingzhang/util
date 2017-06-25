@@ -5,13 +5,15 @@ newmtl Material
 # Values normally range from 0 to 1000
 Ns 96.078431
 
-# Ambient is multiplied by the texture value
+# Ambient reflectivity
+# normally in the range of 0.0 to 1.0
+# Values outside this range increase or decrease the relectivity accordingly
 Ka 1.000000 1.000000 1.000000
 
-# Diffuse is multiplied by the texture value
+# Diffuse reflectivity
 Kd 0.640000 0.640000 0.640000
 
-# Specular is multiplied by the texture value
+# Specular reflectivity
 Ks 0.500000 0.500000 0.500000
 
 # Optical density, a.k.a. index of refraction
