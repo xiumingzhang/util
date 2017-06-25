@@ -19,12 +19,12 @@ class Obj(object):
     Wavefront .obj format
     """
 
-    def __init__(self, name=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False):
+    def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False, mtllib=None, usemtl=None):
         """
         Class constructor
 
         Args:
-            name: Object name
+            o: Object name
                 String
                 Optional; defaults to None
             v: Vertex coordinates
@@ -48,16 +48,23 @@ class Obj(object):
             s: Group smoothing
                 Boolean
                 Optional; defaults to False
+            mtllib: Material file name
+                String, e.g., 'cube.mtl'
+                Optional; defaults to None
+            usemtl: Material name (defined in .mtl file)
+                String
+                Optional; defaults to None
         """
-        self.name = name
+        self.mtllib = mtllib
+        self.o = o
 
         # Vertices
         if v is not None:
             assert (len(v.shape) == 2 and v.shape[1] == 3), "'v' must be *-by-3"
-        if vn is not None:
-            assert (len(vn.shape) == 2 and vn.shape[1] == 3), "'vn' must be *-by-3"
         if vt is not None:
             assert (len(vt.shape) == 2 and vt.shape[1] == 2), "'vt' must be *-by-2"
+        if vn is not None:
+            assert (len(vn.shape) == 2 and vn.shape[1] == 3), "'vn' must be *-by-3"
         self.v = v
         self.vt = vt
         self.vn = vn
@@ -72,7 +79,7 @@ class Obj(object):
         self.ft = ft
         self.fn = fn
 
-        # Group smoothing
+        self.usemtl = usemtl
         self.s = s
 
     # Populate attributes with contents read from file
@@ -87,8 +94,6 @@ class Obj(object):
         Returns:
             self: updated object
         """
-        thisfunc = thisfile + '->load_file()'
-
         fid = open(obj_file, 'r')
         lines = [l.strip('\n') for l in fid.readlines()]
         lines = [l for l in lines if len(l) > 0] # remove empty lines
@@ -106,9 +111,13 @@ class Obj(object):
         n_f = len(lines_f)
 
         # Initialize arrays
+        mtllib = None
+        o = None
         v = np.zeros((n_v, 3))
         vt = np.zeros((n_vt, 2))
         vn = np.zeros((n_vn, 3))
+        usemtl = None
+        s = False
         f = [None] * n_f
         # If there's no 'ft' or 'fn' for a 'f', a '[]' is inserted as a placeholder
         # This guarantees 'f[i]' always corresponds to 'ft[i]' and 'fn[i]'
@@ -118,11 +127,13 @@ class Obj(object):
         # Load data line by line
         n_ft, n_fn = 0, 0
         i_v, i_vt, i_vn, i_f = 0, 0, 0, 0
-        for i, l in enumerate(lines):
+        for l in lines:
             if l[0] == '#': # comment
                 pass
+            elif l[:7] == 'mtllib ': # mtl file
+                mtllib = l[7:]
             elif l[:2] == 'o ': # object name
-                name = l[2:]
+                o = l[2:]
             elif l[:2] == 'v ': # geometric vertex
                 v[i_v, :] = [float(x) for x in l[2:].split(' ')]
                 i_v += 1
@@ -132,6 +143,11 @@ class Obj(object):
             elif l[:3] == 'vn ': # normal vector
                 vn[i_vn, :] = [float(x) for x in l[3:].split(' ')]
                 i_vn += 1
+            elif l[:7] == 'usemtl ': # material name
+                usemtl = l[7:]
+            elif l[:2] == 's ': # group smoothing
+                if l[2:] == 'on':
+                    s = True
             elif l[:2] == 'f ': # face
                 n_slashes = l[2:].split(' ')[0].count('/')
                 if n_slashes == 0: # just f (1 2 3)
@@ -156,41 +172,33 @@ class Obj(object):
                         n_ft += 1
                         n_fn += 1
                 i_f += 1
-            elif l[:2] == 's ': # group smoothing
-                s = True if l[2:] == 'on' else False
             else:
-                raise ValueError("Unidentified line type at line %d" % (i + 1))
-
-        # Report
-        logging.info("%s: -----------------------------------", thisfunc)
-        logging.info("%s: # geometric vertices:      %d", thisfunc, n_v)
-        logging.info("%s: # texture vertices         %d", thisfunc, n_vt)
-        logging.info("%s: # vertex normals:          %d", thisfunc, n_vn)
-        logging.info("%s: # geometric faces:         %d", thisfunc, n_f)
-        logging.info("%s: # texture faces:           %d", thisfunc, n_ft)
-        logging.info("%s: # normal faces:            %d", thisfunc, n_fn)
-        logging.info("%s: -----------------------------------", thisfunc)
+                raise ValueError("Unidentified line type: %s" % l)
 
         # Update self
-        self.name = name
+        self.mtllib = mtllib
+        self.o = o
         self.v = v
         self.vt = vt if vt.shape[0] > 0 else None
         self.vn = vn if vn.shape[0] > 0 else None
         self.f = f
         self.ft = ft if any(len(x) > 0 for x in ft) else None
         self.fn = fn if any(len(x) > 0 for x in fn) else None
+        self.usemtl = usemtl
         self.s = s
-        return self
 
     # Print model info
     def print_info(self):
         thisfunc = thisfile + '->print_info()'
 
         # Basic stats
-        name = self.name
+        mtllib = self.mtllib
+        o = self.o
         n_v = self.v.shape[0] if self.v is not None else 0
         n_vt = self.vt.shape[0] if self.vt is not None else 0
         n_vn = self.vn.shape[0] if self.vn is not None else 0
+        usemtl = self.usemtl
+        s = self.s
         n_f = len(self.f) if self.f is not None else 0
         if self.ft is not None:
             n_ft = sum(len(x) > 0 for x in self.ft)
@@ -200,17 +208,18 @@ class Obj(object):
             n_fn = sum(len(x) > 0 for x in self.fn)
         else:
             n_fn = 0
-        s = self.s
 
         logging.info("%s: -------------------------------------------------------", thisfunc)
-        logging.info("%s: Object name            'o'            %s", thisfunc, name)
+        logging.info("%s: Object name            'o'            %s", thisfunc, o)
+        logging.info("%s: Material file          'mtllib'       %s", thisfunc, mtllib)
+        logging.info("%s: Material               'usemtl'       %s", thisfunc, usemtl)
+        logging.info("%s: Group smoothing        's'            %r", thisfunc, s)
         logging.info("%s: # geometric vertices   'v'            %d", thisfunc, n_v)
         logging.info("%s: # texture vertices     'vt'           %d", thisfunc, n_vt)
         logging.info("%s: # normal vectors       'vn'           %d", thisfunc, n_vn)
         logging.info("%s: # geometric faces      'f x/o/o'      %d", thisfunc, n_f)
         logging.info("%s: # texture faces        'f o/x/o'      %d", thisfunc, n_ft)
         logging.info("%s: # normal faces         'f o/o/x'      %d", thisfunc, n_fn)
-        logging.info("%s: Group smoothing        's'            %r", thisfunc, s)
 
         # How many triangles, quads, etc.
         if n_f > 0:
@@ -229,9 +238,9 @@ class Obj(object):
 
         Returns:
             vn: Normal vectors
-                n-by-3 numpy arrays, where n is 'self.f.shape[0]'
+                'len(f)'-by-3 numpy arrays
             fn: Normal faces
-                List of lists of integers starting from 1
+                'len(f)'-long list of lists of integers starting from 1
                 Each member list consists of the same integer, e.g., '[[1, 1, 1], [2, 2, 2, 2], ...]'
         """
         thisfunc = thisfile + '->set_face_normals()'
@@ -264,19 +273,12 @@ class Obj(object):
         """
         thisfunc = thisfile + '->write_file()'
 
-        name = self.name
+        mtllib = self.mtllib
+        o = self.o
         v, vt, vn = self.v, self.vt, self.vn
-        f, ft, fn = self.f, self.ft, self.fn
+        usemtl = self.usemtl
         s = self.s
-
-        # Validate inputs
-        assert (v is not None and len(v.shape) == 2 and v.shape[1] == 3), "'v' must be *-by-3 and not be None"
-        assert (f is not None), "'f' can't be None"
-        if ft is not None:
-            assert (len(f) == len(ft)), "'ft' and 'f' must have the same length"
-        if fn is not None:
-            assert (len(f) == len(fn)), "'fn' and 'f' must have the same length"
-        assert isinstance(s, bool), "'s' must be Boolean"
+        f, ft, fn = self.f, self.ft, self.fn
 
         # mkdir if necessary
         outdir = dirname(objpath)
@@ -285,7 +287,12 @@ class Obj(object):
 
         # Write .obj
         with open(objpath, 'w') as fid:
-            fid.write('o %s\n' % name)
+            # Material file
+            if mtllib is not None:
+                fid.write('mtllib %s\n' % mtllib)
+
+            # Object name
+            fid.write('o %s\n' % o)
 
             # Vertices
             for i in range(v.shape[0]):
@@ -297,6 +304,10 @@ class Obj(object):
                 for i in range(vn.shape[0]):
                     fid.write('vn %f %f %f\n' % tuple(vn[i, :]))
 
+            # Material name
+            if usemtl is not None:
+                fid.write('usemtl %s\n' % usemtl)
+
             # Group smoothing
             if s:
                 fid.write('s on\n')
@@ -304,41 +315,58 @@ class Obj(object):
                 fid.write('s off\n')
 
             # Faces
-            if ft is None and fn is None: # just f
+            if ft is None and fn is None: # just f (1 2 3)
                 for v_id in f:
                     fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
-            elif ft is not None and fn is None: # f and ft
+            elif ft is not None and fn is None: # f and ft (1/1 2/2 3/3 or 1 2 3)
                 for i, v_id in enumerate(f):
                     vt_id = ft[i]
-                    assert (len(v_id) == len(vt_id)), "'f[%d]' and 'ft[%d]' are of different lengths" % (i, i)
-                    fid.write(('f' + ' %d/%d' * len(v_id) + '\n') %
-                              tuple([x for pair in zip(v_id, vt_id) for x in pair]))
-            elif ft is None and fn is not None: # f and fn
+                    if len(vt_id) == len(v_id):
+                        fid.write(('f' + ' %d/%d' * len(v_id) + '\n') %
+                                  tuple([x for pair in zip(v_id, vt_id) for x in pair]))
+                    elif len(vt_id) == 0:
+                        fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
+                    else:
+                        raise ValueError("'ft[%d]', not empty, doesn't match length of 'f[%d]'" % (i, i))
+            elif ft is None and fn is not None: # f and fn (1//1 2//1 3//1 or 1 2 3)
                 for i, v_id in enumerate(f):
                     vn_id = fn[i]
-                    assert (len(v_id) == len(vn_id)), "'f[%d]' and 'fn[%d]' are of different lengths" % (i, i)
-                    fid.write(('f' + ' %d//%d' * len(v_id) + '\n') %
-                              tuple([x for pair in zip(v_id, vn_id) for x in pair]))
-            elif ft is not None and fn is not None: # all
+                    if len(vn_id) == len(v_id):
+                        fid.write(('f' + ' %d//%d' * len(v_id) + '\n') %
+                                  tuple([x for pair in zip(v_id, vn_id) for x in pair]))
+                    elif len(vn_id) == 0:
+                        fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
+                    else:
+                        raise ValueError("'fn[%d]', not empty, doesn't match length of 'f[%d]'" % (i, i))
+            elif ft is not None and fn is not None: # f, ft and fn (1/1/1 2/2/1 3/3/1 or 1/1 2/2 3/3 or 1//1 2//1 3//1 or 1 2 3)
                 for i, v_id in enumerate(f):
                     vt_id = ft[i]
                     vn_id = fn[i]
-                    assert (len(v_id) == len(vt_id)), "'f[%d]' and 'ft[%d]' are of different lengths" % (i, i)
-                    assert (len(v_id) == len(vn_id)), "'f[%d]' and 'fn[%d]' are of different lengths" % (i, i)
-                    fid.write(('f' + ' %d/%d/%d' * len(v_id) + '\n') %
-                              tuple([x for triple in zip(v_id, vt_id, vn_id) for x in triple]))
+                    if len(vt_id) == len(v_id) and len(vn_id) == len(v_id):
+                        fid.write(('f' + ' %d/%d/%d' * len(v_id) + '\n') %
+                                  tuple([x for triple in zip(v_id, vt_id, vn_id) for x in triple]))
+                    elif len(vt_id) == len(v_id) and len(vn_id) == 0:
+                        fid.write(('f' + ' %d/%d' * len(v_id) + '\n') %
+                                  tuple([x for pair in zip(v_id, vt_id) for x in pair]))
+                    elif len(vt_id) == 0 and len(vn_id) == len(v_id):
+                        fid.write(('f' + ' %d//%d' * len(v_id) + '\n') %
+                                  tuple([x for pair in zip(v_id, vn_id) for x in pair]))
+                    elif len(vt_id) == 0 and len(vn_id) == 0:
+                        fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
+                    else:
+                        raise ValueError("If not empty, 'ft[%d]' or 'fn[%d]' doesn't match length of 'f[%d]'" % (i, i, i))
         logging.info("%s: Done writing to %s", thisfunc, objpath)
 
 
 # Test
 if __name__ == '__main__':
-    # objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/icosphere2.obj'
-    objf = './example-obj-mtl/cube.obj'
+    objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/icosphere2.obj'
+    # objf = './example-obj-mtl/cube.obj'
     obj = Obj()
     obj.print_info()
     obj.load_file(objf)
     obj.print_info()
-    #obj.set_face_normals()
-    #obj.print_info()
-    #objf_mod = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/moon_mod.obj'
-    #obj.write_file(objf_mod)
+    objf_reproduce = objf.replace('.obj', '_reproduce.obj')
+    obj.write_file(objf_reproduce)
+    obj.set_face_normals()
+    obj.print_info()
