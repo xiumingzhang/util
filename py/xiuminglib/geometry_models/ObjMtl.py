@@ -7,7 +7,8 @@ June 2017
 
 import logging
 from os import makedirs
-from os.path import abspath, dirname, exists
+from os.path import abspath, basename, dirname, exists, join
+from shutil import copy
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
@@ -15,7 +16,7 @@ thisfile = abspath(__file__)
 
 
 class Obj(object):
-    def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False, mtllib=None, usemtl=None):
+    def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False, mtllib=None, usemtl=None, diffuse_map_path=None):
         """
         Class constructor
 
@@ -50,6 +51,9 @@ class Obj(object):
             usemtl: Material name (defined in .mtl file)
                 String
                 Optional; defaults to None
+            diffuse_map_path: Path to diffuse texture map
+                String
+                Optional; defaults to None
         """
         self.mtllib = mtllib
         self.o = o
@@ -77,6 +81,7 @@ class Obj(object):
 
         self.usemtl = usemtl
         self.s = s
+        self.diffuse_map_path = diffuse_map_path
 
     # Populate attributes with contents read from file
     def load_file(self, obj_file):
@@ -185,7 +190,7 @@ class Obj(object):
 
     # Print model info
     def print_info(self):
-        thisfunc = thisfile + '->print_info()'
+        thisfunc = thisfile + '->Obj:print_info()'
 
         # Basic stats
         mtllib = self.mtllib
@@ -195,6 +200,7 @@ class Obj(object):
         n_vn = self.vn.shape[0] if self.vn is not None else 0
         usemtl = self.usemtl
         s = self.s
+        diffuse_map_path = self.diffuse_map_path
         n_f = len(self.f) if self.f is not None else 0
         if self.ft is not None:
             n_ft = sum(len(x) > 0 for x in self.ft)
@@ -209,6 +215,7 @@ class Obj(object):
         logging.info("%s: Object name            'o'            %s", thisfunc, o)
         logging.info("%s: Material file          'mtllib'       %s", thisfunc, mtllib)
         logging.info("%s: Material               'usemtl'       %s", thisfunc, usemtl)
+        logging.info("%s: Diffuse texture map    'map_Kd'       %s", thisfunc, diffuse_map_path)
         logging.info("%s: Group smoothing        's'            %r", thisfunc, s)
         logging.info("%s: # geometric vertices   'v'            %d", thisfunc, n_v)
         logging.info("%s: # texture vertices     'vt'           %d", thisfunc, n_vt)
@@ -239,7 +246,7 @@ class Obj(object):
                 'len(f)'-long list of lists of integers starting from 1
                 Each member list consists of the same integer, e.g., '[[1, 1, 1], [2, 2, 2, 2], ...]'
         """
-        thisfunc = thisfile + '->set_face_normals()'
+        thisfunc = thisfile + '->Obj:set_face_normals()'
 
         n_f = len(self.f)
         vn = np.zeros((n_f, 3))
@@ -267,7 +274,7 @@ class Obj(object):
         """
         Write the current model to a .obj file
         """
-        thisfunc = thisfile + '->write_file()'
+        thisfunc = thisfile + '->Obj:write_file()'
 
         mtllib = self.mtllib
         o = self.o
@@ -354,24 +361,113 @@ class Obj(object):
         logging.info("%s: Done writing to %s", thisfunc, objpath)
 
 
-# class Mtl(object):
-#        if mtllib is not None and usemtl is not None:
-#            if diffuse_map_path is not None:
-#
-#           else:
-#       else:
-#            warn("No .mtl file generated, as one of or both 'mtllib' and 'usemtl' is 'None'")
+class Mtl(object):
+    def __init__(self, obj, Ns=96.078431, Ka=(1, 1, 1), Kd=(0.64, 0.64, 0.64), Ks=(0.5, 0.5, 0.5), Ni=1, d=1, illum=2): # flake8: noqa
+        """
+        Class constructor
+
+        Args:
+            obj: Obj object for which this Mtl object is created
+                Instance of Obj
+            Ns: Specular exponent
+                Float normally ranging from 0 to 1000
+                Optional; defaults to 96.078431
+            Ka: Ambient reflectivity
+                3-tuple of floats normally ranging from 0 to 1; values outside increase or decrease relectivity accordingly
+                Optional; defaults to (1, 1, 1)
+            Kd: Diffuse reflectivity
+                Same as Ka
+                Optional; defaults to (0.64, 0.64, 0.64)
+            Ks: Specular reflectivity
+                Same as Ka
+                Optional; defaults to (0.5, 0.5, 0.5)
+            Ni: Optical density, a.k.a. index of refraction
+                Float ranging from 0.001 to 10; 1 means light doesn't bend as it passes through
+                    Increasing it increases the amount of bending
+                    Glass has an index of refraction of about 1.5
+                    Values of less than 1.0 produce bizarre results and are not recommended
+                Optional; defaults to 1
+            d: Amount this material dissolves into the background
+                Float ranging from 0 to 1; 1.0 is fully opaque (default), and 0 is fully dissolved (completely transparent)
+                    Unlike a real transparent material, the dissolve does not depend upon material thickness nor does it have any spectral character
+                    Dissolve works on all illumination models
+                Optional; defaults to 1
+            illum: Illumination model
+                Integer ranging from 0 to 10; see xiuminglib/example-obj-mtl/cube.mtl for details
+                Optional; defaults to 2
+        """
+        self.mtlfile = obj.mtllib
+        self.newmtl = obj.usemtl
+        self.map_Kd_path = obj.diffuse_map_path
+
+        self.Ns = Ns
+        self.Ka = Ka
+        self.Kd = Kd
+        self.Ks = Ks
+        self.Ni = Ni
+        self.d = d
+        self.illum = illum
+
+    # Print material info
+    def print_info(self):
+        thisfunc = thisfile + '->Mtl:print_info()'
+
+        logging.info("%s: -----------------------------------------------------------", thisfunc)
+        logging.info("%s: Material file                          %s", thisfunc, self.mtlfile)
+        logging.info("%s: Material name           'newmtl'       %s", thisfunc, self.newmtl)
+        logging.info("%s: Diffuse texture map     'map_Kd'       %s", thisfunc, self.map_Kd_path)
+        logging.info("%s: Specular exponent       'Ns'           %f", thisfunc, self.Ns)
+        logging.info("%s: Ambient reflectivity    'Ka'           %s", thisfunc, self.Ka)
+        logging.info("%s: Diffuse reflectivity    'Kd'           %s", thisfunc, self.Kd)
+        logging.info("%s: Specular reflectivity   'Ks'           %s", thisfunc, self.Ks)
+        logging.info("%s: Refraction index        'Ni'           %s", thisfunc, self.Ni)
+        logging.info("%s: Dissolve                'd'            %f", thisfunc, self.d)
+        logging.info("%s: Illumination model      'illum'        %d", thisfunc, self.illum)
+        logging.info("%s: -----------------------------------------------------------", thisfunc)
+
+    # Output object to file
+    def write_file(self, mtldir):
+        """
+        Write to a .mtl file
+        """
+        thisfunc = thisfile + '->Mtl:write_file()'
+
+        # Validate inputs
+        assert (self.mtlfile is not None and self.newmtl is not None), "'mtlfile' and 'newmtl' must not be 'None'"
+
+        # mkdir if necessary
+        if not exists(mtldir):
+            makedirs(mtldir)
+
+        # Write .mtl
+        mtlpath = join(mtldir, self.mtlfile)
+        with open(mtlpath, 'w') as fid:
+            fid.write('newmtl %s\n' % self.newmtl)
+            fid.write('Ns %f\n' % self.Ns)
+            fid.write('Ka %f %f %f\n' % self.Ka)
+            fid.write('Kd %f %f %f\n' % self.Kd)
+            fid.write('Ks %f %f %f\n' % self.Ks)
+            fid.write('Ni %f\n' % self.Ni)
+            fid.write('d %f\n' % self.d)
+            fid.write('illum %d\n' % self.illum)
+
+            map_Kd_path = self.map_Kd_path
+            if map_Kd_path is not None:
+                fid.write('map_Kd %s\n' % basename(map_Kd_path))
+                copy(map_Kd_path, mtldir)
+
+        logging.info("%s: Done writing to %s", thisfunc, mtlpath)
 
 
 # Test
 if __name__ == '__main__':
     objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/icosphere2.obj'
     # objf = '../example-obj-mtl/cube.obj'
-    obj = Obj()
-    obj.print_info()
-    obj.load_file(objf)
-    obj.print_info()
+    myobj = Obj()
+    myobj.print_info()
+    myobj.load_file(objf)
+    myobj.print_info()
     objf_reproduce = objf.replace('.obj', '_reproduce.obj')
-    obj.write_file(objf_reproduce)
-    obj.set_face_normals()
-    obj.print_info()
+    myobj.write_file(objf_reproduce)
+    myobj.set_face_normals()
+    myobj.print_info()

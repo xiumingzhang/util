@@ -54,4 +54,4 @@ illum 2
 
 # Color texture file
 # During rendering, it is multiplied by the Kd value
-map_Kd texture.png
+map_Kd cube.png
