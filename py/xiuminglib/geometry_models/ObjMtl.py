@@ -10,13 +10,14 @@ from os import makedirs
 from os.path import abspath, basename, dirname, exists, join
 from shutil import copy
 import numpy as np
+import cv2
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
 class Obj(object):
-    def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False, mtllib=None, usemtl=None, diffuse_map_path=None):
+    def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False, mtllib=None, usemtl=None, diffuse_map_path=None, diffuse_map_scale=1):
         """
         Class constructor
 
@@ -54,6 +55,9 @@ class Obj(object):
             diffuse_map_path: Path to diffuse texture map
                 String
                 Optional; defaults to None
+            diffuse_map_scale: Scale of diffuse texture map
+                Float
+                Optional; defaults to 1
         """
         self.mtllib = mtllib
         self.o = o
@@ -82,6 +86,7 @@ class Obj(object):
         self.usemtl = usemtl
         self.s = s
         self.diffuse_map_path = diffuse_map_path
+        self.diffuse_map_scale = diffuse_map_scale
 
     # Populate attributes with contents read from file
     def load_file(self, obj_file):
@@ -201,6 +206,7 @@ class Obj(object):
         usemtl = self.usemtl
         s = self.s
         diffuse_map_path = self.diffuse_map_path
+        diffuse_map_scale = self.diffuse_map_scale
         n_f = len(self.f) if self.f is not None else 0
         if self.ft is not None:
             n_ft = sum(len(x) > 0 for x in self.ft)
@@ -216,6 +222,7 @@ class Obj(object):
         logging.info("%s: Material file          'mtllib'       %s", thisfunc, mtllib)
         logging.info("%s: Material               'usemtl'       %s", thisfunc, usemtl)
         logging.info("%s: Diffuse texture map    'map_Kd'       %s", thisfunc, diffuse_map_path)
+        logging.info("%s: Diffuse map scale                     %f", thisfunc, diffuse_map_scale)
         logging.info("%s: Group smoothing        's'            %r", thisfunc, s)
         logging.info("%s: # geometric vertices   'v'            %d", thisfunc, n_v)
         logging.info("%s: # texture vertices     'vt'           %d", thisfunc, n_vt)
@@ -399,6 +406,7 @@ class Mtl(object):
         self.mtlfile = obj.mtllib
         self.newmtl = obj.usemtl
         self.map_Kd_path = obj.diffuse_map_path
+        self.map_Kd_scale = obj.diffuse_map_scale
 
         self.Ns = Ns
         self.Ka = Ka
@@ -416,6 +424,7 @@ class Mtl(object):
         logging.info("%s: Material file                          %s", thisfunc, self.mtlfile)
         logging.info("%s: Material name           'newmtl'       %s", thisfunc, self.newmtl)
         logging.info("%s: Diffuse texture map     'map_Kd'       %s", thisfunc, self.map_Kd_path)
+        logging.info("%s: Diffuse map scale                      %f", thisfunc, self.map_Kd_scale)
         logging.info("%s: Specular exponent       'Ns'           %f", thisfunc, self.Ns)
         logging.info("%s: Ambient reflectivity    'Ka'           %s", thisfunc, self.Ka)
         logging.info("%s: Diffuse reflectivity    'Kd'           %s", thisfunc, self.Kd)
@@ -452,9 +461,15 @@ class Mtl(object):
             fid.write('illum %d\n' % self.illum)
 
             map_Kd_path = self.map_Kd_path
+            map_Kd_scale = self.map_Kd_scale
             if map_Kd_path is not None:
                 fid.write('map_Kd %s\n' % basename(map_Kd_path))
-                copy(map_Kd_path, mtldir)
+                if map_Kd_scale == 1:
+                    copy(map_Kd_path, mtldir)
+                else:
+                    im = cv2.imread(map_Kd_path, cv2.IMREAD_UNCHANGED)
+                    im = cv2.resize(im, None, fx=map_Kd_scale, fy=map_Kd_scale)
+                    cv2.imwrite(join(mtldir, basename(map_Kd_path)), im)
 
         logging.info("%s: Done writing to %s", thisfunc, mtlpath)
 
