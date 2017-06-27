@@ -11,14 +11,19 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def matrix_as_heatmap(mat, outpath=None):
+def matrix_as_heatmap(mat, outpath=None, figtitle=None):
     """
     Visualizes a matrix as heatmap
 
     Args:
-        mat: 2D numpy array
-        outpath: path string
-            If not given, visualization is saved to './heatmap.png'
+        mat: Matrix to visualize as heatmp
+            2D numpy array
+        outpath: Path to which the visualization is saved
+            String
+            Optional; defaults to './heatmap.png'
+        figtitle: Figure title
+            String
+            Optional; defaults to None (no title)
 
     Returns:
         None
@@ -27,6 +32,10 @@ def matrix_as_heatmap(mat, outpath=None):
     figsize = 14
     plt.figure(figsize=(figsize, figsize))
     ax = plt.gca()
+
+    # Set title
+    if figtitle is not None:
+        ax.set_title(figtitle)
 
     # Generate heatmap with matrix entries
     im = ax.imshow(mat)

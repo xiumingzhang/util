@@ -267,6 +267,8 @@ class Obj(object):
             p1p2 = verts[1, :] - verts[0, :]
             p1p3 = verts[2, :] - verts[0, :]
             normal = np.cross(p1p2, p1p3)
+            if np.linalg.norm(normal) == 0:
+                raise ValueError("Normal vector of zero length probably due to numerical issues?")
             vn[i, :] = normal / np.linalg.norm(normal) # normalize
             fn[i] = [i + 1] * len(verts_id)
 
