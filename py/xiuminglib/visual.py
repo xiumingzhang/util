@@ -82,6 +82,9 @@ def verts_on_texmap(u, v, texmap, outpath='./verts_on_texmap.png', figtitle=None
         None
     """
     figsize = 50
+    c = 'r'
+    s = 2
+
     fig = plt.figure(figsize=(figsize, figsize))
     if figtitle is not None:
         fig.suptitle(figtitle)
@@ -95,37 +98,31 @@ def verts_on_texmap(u, v, texmap, outpath='./verts_on_texmap.png', figtitle=None
     else:
         raise TypeError("Wrong input format for 'texmap'")
 
-    # Count number of vertices falling into each cell of the texture map
     h, w = texmap.shape[:2]
-    ind2 = np.floor(u * w)
-    ind1 = np.floor(v * h)
-    ind2[ind2 == w] = w - 1
-    ind1[ind1 == h] = h - 1
-    ind2 = ind2.astype(int)
-    ind1 = ind1.astype(int)
-    sample_count = np.zeros((h, w))
-    np.add.at(sample_count, (ind1, ind2), 1) # unbuffered in-place operation
-    # 'a[[0, 0]] += 1' will only increment the first element once because of buffering
-    # whereas 'add.at(a, [0, 0], 1)' will increment the first element twice
+    x = u * w
+    y = (1 - v) * h
+    # (0, 0)
+    #   +----------->
+    #   |          x
+    #   |
+    #   |
+    #   v y
 
-    # Modify colormap so that 0 is transparent
-    cmap = plt.get_cmap('Reds')
-    cmap_colors = cmap(np.arange(cmap.N))
-    cmap_colors[0, -1] = 0 # set transparent
-    cmap_mod = ListedColormap(cmap_colors)
-
-    # Figure 1: sample count
+    # Figure 1: scatter-plot UV coordinates
     ax = fig.add_subplot(211)
-    im = ax.imshow(sample_count, cmap=cmap_mod)
-    cax = make_axes_locatable(ax).append_axes('right', size='2%', pad=0.1)
-    plt.colorbar(im, cax=cax)
+    ax.set_xlim([0, w])
+    ax.set_ylim([0, h])
+    ax.invert_yaxis() # origin left top corner
+    ax.scatter(x, y, c=c, s=s)
+    ax.set_aspect('equal')
 
     # Figure 2: selection mask over texture image
     ax = fig.add_subplot(212)
+    ax.set_xlim([0, w])
+    ax.set_ylim([h, 0])
     ax.imshow(texmap)
-    im = ax.imshow(sample_count, cmap=cmap_mod)
-    cax = make_axes_locatable(ax).append_axes('right', size='2%', pad=0.1)
-    plt.colorbar(im, cax=cax)
+    ax.scatter(x, y, c=c, s=s) # origin left top corner
+    ax.set_aspect('equal')
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
