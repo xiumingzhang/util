@@ -21,12 +21,14 @@ def binarize(im):
     Binarizes images
 
     Args:
-        im: numpy array of any interger type (uint8, uint16, etc.)
-            If h-by-w, binarize each pixel at datatype midpoint.
-            If h-by-w-3, convert to grayscale and treat as h-by-w.
+        im: Image to binarize
+            Numpy array of any interger type (uint8, uint16, etc.)
+                - If h-by-w, binarize each pixel at datatype midpoint
+                - If h-by-w-3, convert to grayscale and treat as h-by-w
 
     Returns:
-        im_bin: binarized h-by-w numpy array of only 0's and 1's
+        im_bin: Binarized image
+            h-by-w numpy array of only 0's and 1's
     """
 
     # Compute threshold from datatype
@@ -47,17 +49,22 @@ def binarize(im):
     return im_bin
 
 
-def remove_islands(im, connectivity, min_n_pixels):
+def remove_islands(im, min_n_pixels, connectivity=4):
     """
     Removes small islands of pixels from a binary image
 
     Args:
-        im: 2D numpy array of only 0's and 1's
-        connectivity: can only be 4 or 8
-        min_n_pixels: minimum island size to keep
+        im: Input binary image
+            2D numpy array of only 0's and 1's
+        min_n_pixels: Minimum island size to keep
+            Integer
+        connectivity: Definition of "connected"
+            Either 4 or 8
+            Optional; defaults to 4
 
     Returns:
-        im_clean: numpy array of 0's and 1's with small islands removed
+        im_clean: Output image with small islands removed
+            2D numpy array of 0's and 1's
     """
 
     # Validate inputs
