@@ -5,6 +5,7 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
+from warnings import warn
 import numpy as np
 
 
@@ -60,6 +61,8 @@ def spherical2cartesian(pts_spherical):
     # Validate inputs
     assert (len(pts_spherical.shape) == 2), "'pts' must be a 2D array"
     assert (pts_spherical.shape[1] == 3), "Second dimension of 'pts' must be 3"
+    if (np.abs(pts_spherical) > 2 * np.pi).any():
+        warn("Some input value falls outside [-2pi, 2pi]. Are you sure inputs are in radians?")
 
     # Compute x, y and z
     r = pts_spherical[:, 0]
