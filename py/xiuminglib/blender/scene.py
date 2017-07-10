@@ -100,7 +100,7 @@ def save_to_file(outpath, delete_overwritten=False):
     logging.info("%s: Saved to %s", thisfunc, outpath)
 
 
-def render_to_file(outpath, text=None, hide=None):
+def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
     """
     Render current scene to images with cameras in scene
 
@@ -117,7 +117,10 @@ def render_to_file(outpath, text=None, hide=None):
                 'thickness': 2
             }
             Optional; defaults to None
-        hide: What objects should be hidden from which camera
+        cam_names: Render views from which camera
+            List of strings (camera names)
+            Optional; defaults to None (render all cameras)
+        hide_from_cam: What objects should be hidden from which camera
             Dictionary of the following format
             {
                 'cam1': 'obj1',
@@ -135,27 +138,29 @@ def render_to_file(outpath, text=None, hide=None):
     # Render with all cameras
     for cam in bpy.data.objects:
         if cam.type == 'CAMERA':
-            # Set active camera
-            bpy.context.scene.camera = cam
+            if cam_names is None or cam.name in cam_names:
 
-            # Prepend camera name
-            outpath_final = join(dirname(outpath), cam.name + '_' + basename(outpath))
-            bpy.context.scene.render.filepath = outpath_final
+                # Set active camera
+                bpy.context.scene.camera = cam
 
-            # Optionally set camera visibility for objects
-            if hide is not None:
-                for obj in bpy.data.objects:
-                    if obj.type == 'MESH':
-                        obj.hide_render = obj.name in hide.get(cam.name, []) # if no such key, returns empty list
+                # Prepend camera name
+                outpath_final = join(dirname(outpath), cam.name + '_' + basename(outpath))
+                bpy.context.scene.render.filepath = outpath_final
 
-            # Render
-            bpy.ops.render.render(write_still=True)
+                # Optionally set camera visibility for objects
+                if hide_from_cam is not None:
+                    for obj in bpy.data.objects:
+                        if obj.type == 'MESH':
+                            obj.hide_render = obj.name in hide_from_cam.get(cam.name, []) # if no such key, returns empty list
 
-            # Optionally overlay text
-            if text is not None:
-                im = cv2.imread(outpath_final, cv2.IMREAD_UNCHANGED)
-                cv2.putText(im, text['contents'], text['bottom_left_corner'],
-                            cv2.FONT_HERSHEY_SIMPLEX, text['font_scale'], text['bgr'], text['thickness'])
-                cv2.imwrite(outpath_final, im)
+                # Render
+                bpy.ops.render.render(write_still=True)
 
-            logging.info("%s: Rendered with camera '%s'", thisfunc, cam.name)
+                # Optionally overlay text
+                if text is not None:
+                    im = cv2.imread(outpath_final, cv2.IMREAD_UNCHANGED)
+                    cv2.putText(im, text['contents'], text['bottom_left_corner'],
+                                cv2.FONT_HERSHEY_SIMPLEX, text['font_scale'], text['bgr'], text['thickness'])
+                    cv2.imwrite(outpath_final, im)
+
+                logging.info("%s: Rendered with camera '%s'", thisfunc, cam.name)
