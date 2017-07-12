@@ -5,19 +5,18 @@ Xiuming Zhang, MIT CSAIL
 May 2017
 """
 
-import argparse
+from argparse import ArgumentParser
 from os import makedirs
 from os.path import exists, join, abspath
 import logging
-from shutil import rmtree
 from cv2 import imwrite, VideoCapture
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 # Parse variables
-parser = argparse.ArgumentParser(description="Extract frames from a video file")
-parser.add_argument('videopath', metavar='v', type=str, help="video file")
+parser = ArgumentParser(description="Extract frames from a video file")
+parser.add_argument('videopath', metavar='i', type=str, help="input video file")
 parser.add_argument('outdir', metavar='o', type=str, help="output directory")
 parser.add_argument('--every', metavar='n', type=int, default=1, help="sample one frame every n frame(s) (default: 1)")
 parser.add_argument('--outlen', metavar='l', type=int, default=4, help="length of output filenames (default: 4)")
@@ -28,9 +27,8 @@ every = args.every
 outlen = args.outlen
 
 # Make directory
-if exists(outdir):
-    rmtree(outdir)
-makedirs(outdir)
+if not exists(outdir):
+    makedirs(outdir)
 
 # Read frames from video
 vid = VideoCapture(videopath)
