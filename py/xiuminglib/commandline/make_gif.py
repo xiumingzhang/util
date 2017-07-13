@@ -9,11 +9,20 @@ from argparse import ArgumentParser
 from os import makedirs
 from os.path import exists, join, abspath, dirname, basename
 import logging
-from shutil import copyfile
-import cv2 import imread, imwrite
+from shutil import copyfile, rmtree
+from subprocess import call
+import cv2
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
+
+# Parameters
+GIF_DELAY = 400
+GIF_LOOP = 1
+BOTTOM_LEFT_CORNER = (100, 150)
+FONT_SCALE = 4
+FONT_BGR = (0, 0, 255)
+FONT_THICK = 5
 
 # Parse variables
 parser = ArgumentParser(description="Make annotated GIF from image-text pairs")
@@ -36,18 +45,22 @@ if not exists(tmpdir):
 for impath_text in pairs:
     impath_text = impath_text.split(',')
     impath = impath_text[0]
-    if len(impath_text) == 2 or impath_text[1] == '':
+    tmppath = join(tmpdir, basename(impath))
+    if len(impath_text) == 1 or impath_text[1] == '':
         # No text -- just copy
-        copyfile(impath, join(tmpdir, basename(impath)))
+        copyfile(impath, tmppath)
     else:
         text = impath_text[1]
-        im = cv2.imread(outpath_final, cv2.IMREAD_UNCHANGED)
-        cv2.putText(im, text['contents'], text['bottom_left_corner'],
-                    cv2.FONT_HERSHEY_SIMPLEX, text['font_scale'], text['bgr'], text['thickness'])
-        cv2.imwrite(outpath_final, im)
-    im_text.append([im, text])
+        im = cv2.imread(impath, cv2.IMREAD_UNCHANGED)
+        cv2.putText(im, text, BOTTOM_LEFT_CORNER, cv2.FONT_HERSHEY_SIMPLEX,
+                    FONT_SCALE, FONT_BGR, FONT_THICK)
+        cv2.imwrite(tmppath, im)
 
 # Make GIF
+call(['convert', '-delay', str(GIF_DELAY), '-loop', str(GIF_LOOP),
+      join(tmpdir, '*'), outpath])
 
+# Clean up
+rmtree(tmpdir)
 
-logging.info("%s: ", thisfile)
+logging.info("%s: Generated %s", thisfile, outpath)
