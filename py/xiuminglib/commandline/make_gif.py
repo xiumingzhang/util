@@ -16,9 +16,6 @@ import cv2
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
-# Parameters
-GIF_LOOP = 1
-
 # Parse variables
 parser = ArgumentParser(description="Make annotated GIF from image-text pairs")
 parser.add_argument('input', metavar='i', type=str, nargs='+',
@@ -69,7 +66,7 @@ for impath_text in pairs:
     cv2.imwrite(tmppath, im)
 
 # Make GIF
-call(['convert', '-delay', str(gif_delay), '-loop', str(GIF_LOOP),
+call(['convert', '-delay', str(gif_delay), '-loop', '0',
       join(tmpdir, '*'), outpath])
 
 # Clean up
