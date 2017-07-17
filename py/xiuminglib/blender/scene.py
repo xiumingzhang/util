@@ -53,9 +53,12 @@ def set_cycles(w, h, n_samples=200):
     cycles.blur_glossy = 5
     cycles.sample_clamp_indirect = 5
 
-    # No background node
+    # Ensure no background node
     world.use_nodes = True
-    world.node_tree.nodes.remove(world.node_tree.nodes['Background'])
+    try:
+        world.node_tree.nodes.remove(world.node_tree.nodes['Background'])
+    except KeyError:
+        pass
 
     # # Use GPU
     # bpy.context.user_preferences.system.compute_device_type = 'CUDA'
