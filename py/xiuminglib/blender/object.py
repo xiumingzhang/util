@@ -62,8 +62,8 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
             Optional; defaults to name specified in model
 
     Returns:
-        obj: Handle of imported object
-            bpy_types.Object
+        obj: Handle(s) of imported object(s)
+            bpy_types.Object or list
     """
     thisfunc = thisfile + '->add_object()'
 
@@ -72,18 +72,28 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         bpy.ops.import_scene.obj(filepath=model_path, axis_forward='-Z', axis_up='Y')
     else:
         raise NotImplementedError("Importing model of this type")
-    obj = bpy.context.selected_objects[0]
+    obj_list = []
+    for i in range(len(bpy.context.selected_objects)):
+        obj = bpy.context.selected_objects[i]
 
-    # Rename
-    if name is not None:
-        obj.name = name
+        # Rename
+        if name is not None:
+            if len(bpy.context.selected_objects) == 1:
+                obj.name = name
+            else:
+                obj.name = name + '_' + str(i)
 
-    # Compute world matrix
-    trans_4x4 = Matrix.Translation(trans_vec)
-    rot_4x4 = Matrix(rot_mat).to_4x4()
-    scale_4x4 = Matrix(np.eye(4)) # no scaling
-    obj.matrix_world = trans_4x4 * rot_4x4 * scale_4x4
+        # Compute world matrix
+        trans_4x4 = Matrix.Translation(trans_vec)
+        rot_4x4 = Matrix(rot_mat).to_4x4()
+        scale_4x4 = Matrix(np.eye(4)) # no scaling
+        obj.matrix_world = trans_4x4 * rot_4x4 * scale_4x4
+        obj_list.append(obj)
 
     logging.info("%s: Imported: %s", thisfunc, model_path)
 
-    return obj
+    if len(obj_list) == 1:
+        return obj_list[0]
+    else:
+        return obj_list
+
