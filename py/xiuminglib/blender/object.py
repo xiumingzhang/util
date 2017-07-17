@@ -3,6 +3,8 @@ Utility functions for manipulating objects in Blender
 
 Xiuming Zhang, MIT CSAIL
 July 2017
+
+Contributor(s): Xingyuan Sun
 """
 
 import logging
@@ -63,7 +65,7 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
 
     Returns:
         obj: Handle(s) of imported object(s)
-            bpy_types.Object or list
+            bpy_types.Object or list thereof
     """
     thisfunc = thisfile + '->add_object()'
 
@@ -72,9 +74,9 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         bpy.ops.import_scene.obj(filepath=model_path, axis_forward='-Z', axis_up='Y')
     else:
         raise NotImplementedError("Importing model of this type")
+
     obj_list = []
-    for i in range(len(bpy.context.selected_objects)):
-        obj = bpy.context.selected_objects[i]
+    for i, obj in enumerate(bpy.context.selected_objects):
 
         # Rename
         if name is not None:
@@ -96,4 +98,3 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         return obj_list[0]
     else:
         return obj_list
-
