@@ -7,7 +7,6 @@ July 2017
 
 import logging
 from os.path import abspath
-import numpy as np
 import bpy
 from mathutils import Vector
 
@@ -115,29 +114,16 @@ def get_camera_mat(cam, w, h):
         ext_mat: Camera extrinsics matrix
             3-by-4 numpy matrix
     """
-    thisfunc = thisfile + '->get_camera_mat()'
+    thisfunc = thisfile + '->point_camera_to()'
 
-    # Necessary scene update
-    bpy.context.scene.update()
+    xyz_target = Vector(xyz_target)
+    direction = xyz_target - cam.location
+    # Find quaternion that rotates '-Z' so that it aligns with 'direction'
+    # This rotation is not unique because the rotated camera can still rotate about direction vector
+    # Specifying 'Y' gives the rotation quaternion with camera's 'Y' pointing up
+    rot_quat = direction.to_track_quat('-Z', 'Y')
+    cam.rotation_euler = rot_quat.to_euler()
 
-    # Intrinsics
-    f = cam.data.lens * w / cam.data.sensor_width
-    int_mat = np.matrix([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
+    logging.info("%s: Camera pointed to %s", thisfunc, xyz_target)
 
-    # Extrinsics
-    # World coordinate system -- matrix_world --> object local coordinate system
-    # Where is local (x, y, z) in world coordinate system? matrix_world * (x, y, z, 1)
-    # World coordinate system -- matrix_world --> camera local coordinate system
-    # Where is global (x, y, z) in camera coordinate system? inv(matrix_world) * (x, y, z, 1)
-    # Bottom row of matrix_world is (0, 0, 0, 1)
-    ext_mat = np.matrix(cam.matrix_world.inverted())
-    ext_mat = ext_mat[:-1, :]
-    # Now 3-by-4. That is,
-    # multiplying with homogeneous coordinates gives Cartesian coordinate
-
-    # Camera matrix
-    cam_mat = int_mat * ext_mat
-
-    logging.info("%s: Done computing camera matrix", thisfunc)
-
-    return cam_mat, int_mat, ext_mat
+    return cam
