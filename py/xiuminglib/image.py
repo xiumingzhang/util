@@ -94,9 +94,11 @@ def interp2(im, query_pts):
     Query interpolated values of float lactions (bivariate spline approximation)
 
     Args:
-        im: h-by-w or h-by-w-by-c numpy array
-            Each channel is interpolated independently.
-        query_pts: n-by-2 numpy array
+        im: Rectangular grid of data
+            h-by-w or h-by-w-by-c numpy array
+            Each channel is interpolated independently
+        query_pts: Query locations
+            n-by-2 numpy array
             +-----------> dim1
             |
             |
@@ -128,13 +130,15 @@ def interp2(im, query_pts):
     query_x = query_pts[:, 0]
     query_y = query_pts[:, 1]
 
-    if c == 1: # Single channel
+    if c == 1:
+        # Single channel
         z = im
         spline_obj = RectBivariateSpline(x, y, z)
         logging.info("%s: Interpolation started", thisfunc)
         interp_val = spline_obj(query_x, query_y, grid=False)
         logging.info("%s:     ... done", thisfunc)
-    else: # Multiple channels
+    else:
+        # Multiple channels
         warn("Support for 'im' having multiple channels has not been thoroughly tested!")
         interp_val = np.zeros((len(query_x), c))
         for i in range(c):
