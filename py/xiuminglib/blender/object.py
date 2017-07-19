@@ -98,3 +98,35 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         return obj_list[0]
     else:
         return obj_list
+
+
+def subdivide_mesh(obj, n_subdiv=2):
+    """
+    Subdivide mesh of object
+
+    Args:
+        obj: Object whose mesh is to be subdivided
+            bpy_types.Object
+        n_subdiv: Number of subdivision levels
+            Integer
+            Optional; defaults to 2
+    """
+    thisfunc = thisfile + '->subdivide_mesh()'
+
+    # All objects need to be in 'EDIT' mode to apply modifiers -- maybe a Blender bug?
+    for o in bpy.data.objects:
+        bpy.context.scene.objects.active = o
+        bpy.ops.object.mode_set(mode='OBJECT')
+        o.select = False
+    obj.select = True
+    bpy.context.scene.objects.active = obj
+
+    bpy.ops.object.modifier_add(type='SUBSURF')
+    obj.modifiers['Subsurf'].subdivision_type = 'CATMULL_CLARK'
+    obj.modifiers['Subsurf'].levels = n_subdiv
+    obj.modifiers['Subsurf'].render_levels = n_subdiv
+
+    # Apply modifier
+    bpy.ops.object.modifier_apply(modifier='Subsurf', apply_as='DATA')
+
+    logging.info("%s: Subdivided mesh of %s", thisfunc, obj.name)
