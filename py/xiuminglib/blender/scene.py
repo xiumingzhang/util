@@ -40,12 +40,12 @@ def set_cycles(w=None, h=None, n_samples=None):
     if n_samples is not None:
         cycles.samples = n_samples
     cycles.max_bounces = 100
-    cycles.min_bounces = 3
+    cycles.min_bounces = 10
     cycles.caustics_reflective = False
     cycles.caustics_refractive = False
-    cycles.diffuse_bounces = 4
+    cycles.diffuse_bounces = 10
     cycles.glossy_bounces = 4
-    cycles.transmission_bounces = 10
+    cycles.transmission_bounces = 4
     cycles.volume_bounces = 0
     cycles.transparent_min_bounces = 8
     cycles.transparent_max_bounces = 64
