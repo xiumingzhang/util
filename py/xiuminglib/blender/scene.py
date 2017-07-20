@@ -15,18 +15,20 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def set_cycles(w, h, n_samples=200):
+def set_cycles(w=None, h=None, n_samples=None):
     """
     Set up Cycles as rendering engine
 
     Args:
         w: Width of render in pixels
             Integer
+            Optional; no change if not given
         h: Height of render in pixels
             Integer
+            Optional; no change if not given
         n_samples: Number of samples
             Integer
-            Optional; defaults to 200
+            Optional; no change if not given
     """
     thisfunc = thisfile + '->set_cycles()'
 
@@ -35,7 +37,8 @@ def set_cycles(w, h, n_samples=200):
     cycles = scene.cycles
 
     cycles.use_progressive_refine = True
-    cycles.samples = n_samples
+    if n_samples is not None:
+        cycles.samples = n_samples
     cycles.max_bounces = 100
     cycles.min_bounces = 3
     cycles.caustics_reflective = False
@@ -67,8 +70,10 @@ def set_cycles(w, h, n_samples=200):
 
     scene.render.tile_x = 16 # 256 optimal for GPU
     scene.render.tile_y = 16 # 256 optimal for GPU
-    scene.render.resolution_x = w
-    scene.render.resolution_y = h
+    if w is not None:
+        scene.render.resolution_x = w
+    if h is not None:
+        scene.render.resolution_y = h
     scene.render.resolution_percentage = 100
     scene.render.use_file_extension = True
     scene.render.image_settings.file_format = 'PNG'
