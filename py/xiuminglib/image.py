@@ -96,9 +96,9 @@ def interp2(im, query_pts):
     Args:
         im: Rectangular grid of data
             h-by-w or h-by-w-by-c numpy array
-            Each channel is interpolated independently
+            Each of c channels is interpolated independently
         query_pts: Query locations
-            n-by-2 numpy array
+            Numpy array of shape (n, 2) or (2,)
             +-----------> dim1
             |
             |
@@ -106,7 +106,8 @@ def interp2(im, query_pts):
             v dim0
 
     Returns:
-        interp_val: n-by-c numpy array
+        interp_val: Interpolated values at query locations
+            Numpy array of shape (n, c) or (c,)
     """
     thisfunc = thisfile + '->interp2()'
 
@@ -122,8 +123,12 @@ def interp2(im, query_pts):
         raise ValueError("'im' must have either two or three dimensions")
 
     # Validate inputs
-    assert (len(query_pts.shape) == 2), "'query_pts' must have exactly two dimensions"
-    assert (query_pts.shape[1] == 2), "Second dimension of 'query_pts' must be 2"
+    is_one_point = False
+    if query_pts.shape == (2,):
+        is_one_point = True
+        query_pts = query_pts.reshape(1, 2)
+    elif len(query_pts.shape) != 2 or query_pts.shape[1] != 2:
+        raise ValueError("Shape of input must be either (2,) or (n, 2)")
 
     x = np.arange(h)
     y = np.arange(w)
@@ -147,5 +152,8 @@ def interp2(im, query_pts):
             logging.info("%s: Interpolation started for channel %d/%d", thisfunc, i + 1, c)
             interp_val[:, i] = spline_obj(query_x, query_y, grid=False)
             logging.info("%s:     ... done", thisfunc)
+
+    if is_one_point:
+        interp_val = interp_val.reshape(c)
 
     return interp_val
