@@ -135,6 +135,9 @@ def interp2(im, query_pts):
     query_x = query_pts[:, 0]
     query_y = query_pts[:, 1]
 
+    if np.min(query_x) < 0 or np.max(query_x) > h or np.min(query_y) < 0 or np.max(query_y) > w:
+        warn("Sure you want to query points outside 'im'?")
+
     if c == 1:
         # Single channel
         z = im
