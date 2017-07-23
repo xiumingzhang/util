@@ -97,6 +97,47 @@ def spherical2cartesian(pts_spherical):
     return pts_cartesian
 
 
+def moeller_trumbore(ray_orig, ray_dir, tri_v0, tri_v1, tri_v2):
+    """
+    Decides if a ray intersects with a triangle using the Moeller-Trumbore algorithm
+        O + tD = (1 - u - v) * V0 + u * V1 + v * V2
+
+    Args:
+        ray_orig: Ray origin O
+            List/tuple/etc. that can be converted to a numpy array of shape '(3,)'
+        ray_dir: Ray direction D (not necessarily normalized)
+            List/tuple/etc. that can be converted to a numpy array of shape '(3,)'
+        tri_v0, tri_v1, tri_v2: Vertices of the triangle V0, V1, V2
+            List/tuple/etc. that can be converted to a numpy array of shape '(3,)'
+
+    Returns:
+        u, v: Barycentric coordinates. Intersection is in triangle (including on an edge
+                or at a vertex) if u >= 0, v >= 0, and u + v <= 1
+            Float
+        t: Distance coefficient from O to intersection along D. Intersection is
+                between O and O + tD if 0 < t < 1
+            Float
+    """
+
+    # Validate inputs
+    ray_orig = np.array(ray_orig)
+    ray_dir = np.array(ray_dir)
+    tri_v0 = np.array(tri_v0)
+    tri_v1 = np.array(tri_v1)
+    tri_v2 = np.array(tri_v2)
+    assert (ray_orig.shape == (3,)), "'ray_orig' must be of length 3"
+    assert (ray_dir.shape == (3,)), "'ray_dir' must be of length 3"
+    assert (tri_v0.shape == (3,)), "'tri_v0' must be of length 3"
+    assert (tri_v1.shape == (3,)), "'tri_v1' must be of length 3"
+    assert (tri_v2.shape == (3,)), "'tri_v2' must be of length 3"
+
+    M = np.array([-ray_dir, tri_v1 - tri_v0, tri_v2 - tri_v0]).T # noqa: N806
+    y = (ray_orig - tri_v0).T
+    t, u, v = np.linalg.solve(M, y)
+
+    return u, v, t
+
+
 if __name__ == '__main__':
     # cartesian2spherical
     pts_car = np.array([[-1, 2, 3], [4, -5, 6], [3, 5, -8], [-2, -5, 2], [4, -2, -23]])
