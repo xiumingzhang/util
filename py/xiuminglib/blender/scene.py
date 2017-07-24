@@ -136,12 +136,18 @@ def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
                         ...
             }
             Optional; defaults to None
+
+    Returns:
+        result_path: Path(s) to the rendering ('outpath' prefixed by camera name)
+            String or list thereof
     """
     thisfunc = thisfile + '->render_to_file()'
 
     outdir = dirname(outpath)
     if not exists(outdir):
         makedirs(outdir)
+
+    result_path = []
 
     # Render with all cameras
     for cam in bpy.data.objects:
@@ -154,6 +160,7 @@ def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
                 # Prepend camera name
                 outpath_final = join(dirname(outpath), cam.name + '_' + basename(outpath))
                 bpy.context.scene.render.filepath = outpath_final
+                result_path.append(outpath_final)
 
                 # Optionally set camera visibility for objects
                 if hide_from_cam is not None:
@@ -172,3 +179,8 @@ def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
                     cv2.imwrite(outpath_final, im)
 
                 logging.info("%s: Rendered with camera '%s'", thisfunc, cam.name)
+
+    if len(result_path) == 1:
+        return result_path[0]
+    else:
+        return result_path
