@@ -77,7 +77,7 @@ def spherical2cartesian(pts_spherical):
         raise ValueError("Shape of input must be either (3,) or (n, 3)")
 
     # Degrees?
-    if (np.abs(pts_spherical) > 2 * np.pi).any():
+    if (np.abs(pts_spherical[:, 1:]) > 2 * np.pi).any():
         warn("Some input value falls outside [-2pi, 2pi]. Are you sure inputs are in radians?")
 
     # Compute x, y and z
