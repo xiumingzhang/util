@@ -46,7 +46,7 @@ def remove_object(name_pattern):
     logging.info("%s: Removed from scene: %s", thisfunc, removed)
 
 
-def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=(0, 0, 0), name=None):
+def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=(0, 0, 0), scale=1, name=None):
     """
     Add object to current scene, the low-level way
 
@@ -59,6 +59,9 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         trans_vec: 3D translation vector FOLLOWING rotation
             Tuple, list or numpy array; must be of length 3
             Optional; defaults to zero vector
+        scale: Scale of the object
+            Float
+            Optional; defaults to 1
         name: Object name after import
             String
             Optional; defaults to name specified in model
@@ -88,8 +91,12 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         # Compute world matrix
         trans_4x4 = Matrix.Translation(trans_vec)
         rot_4x4 = Matrix(rot_mat).to_4x4()
-        scale_4x4 = Matrix(np.eye(4)) # no scaling
+        scale_4x4 = Matrix(np.eye(4)) # don't scale here
         obj.matrix_world = trans_4x4 * rot_4x4 * scale_4x4
+
+        # Scale
+        obj.scale = (scale, scale, scale)
+
         obj_list.append(obj)
 
     logging.info("%s: Imported: %s", thisfunc, model_path)
