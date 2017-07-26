@@ -32,7 +32,7 @@ def set_cycles(w=None, h=None, n_samples=None):
     """
     thisfunc = thisfile + '->set_cycles()'
 
-    scene = bpy.data.scenes['Scene']
+    scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
     cycles = scene.cycles
 
@@ -184,3 +184,34 @@ def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
         return result_path[0]
     else:
         return result_path
+
+
+def easyset(w=None, h=None, n_samples=None):
+    """
+    Set some of the scene attributes more easily
+
+    Args:
+        w: Width of render in pixels
+            Integer
+            Optional; no change if not given
+        h: Height of render in pixels
+            Integer
+            Optional; no change if not given
+        n_samples: Number of samples
+            Integer
+            Optional; no change if not given
+    """
+    scene = bpy.context.scene
+
+    if w is not None:
+        scene.render.resolution_x = w
+
+    if h is not None:
+        scene.render.resolution_y = h
+
+    # Number of samples
+    if n_samples is not None:
+        if scene.render.engine == 'CYCLES':
+            scene.cycles.samples = n_samples
+        else:
+            raise NotImplementedError("Rendering engines other than Cycles")
