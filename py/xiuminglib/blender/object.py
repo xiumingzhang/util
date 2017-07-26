@@ -13,6 +13,7 @@ from os.path import abspath
 import numpy as np
 import bpy
 from mathutils import Matrix
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)

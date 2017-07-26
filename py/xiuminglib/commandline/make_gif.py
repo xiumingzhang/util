@@ -12,6 +12,7 @@ import logging
 from shutil import rmtree
 from subprocess import call
 import cv2
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)

@@ -14,6 +14,7 @@ import bpy_types
 from mathutils import Vector, Matrix
 import numpy as np
 import cv2
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
@@ -188,8 +189,8 @@ def get_camera_mat(cam):
     # Camera matrix
     cam_mat = int_mat * ext_mat
 
-    logging.info("%s: Done computing camera matrix. Image resolution used: w = %d; h = %d",
-                 thisfunc, w * scale, h * scale)
+    logging.info("%s: Done computing camera matrix", thisfunc)
+    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
 
     return cam_mat, int_mat, ext_mat
 
@@ -271,8 +272,8 @@ def get_camera_zbuffer(cam, save_to=None):
         # User wants it -- rename
         rename(exr_path, outpath + '.exr')
 
-    logging.info("%s: Got z-buffer of camera '%s'. Image resolution used: w = %d; h = %d",
-                 thisfunc, cam.name, w * scale, h * scale)
+    logging.info("%s: Got z-buffer of camera '%s'", thisfunc, cam.name)
+    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
 
     return zbuffer
 
@@ -352,8 +353,8 @@ def get_visible_verts_from(cam, ooi=None, ignore_occlusion=False, prec_eps=1e-6)
 
         visible_vert_ind[obj.name] = vert_ind
 
-    logging.info("%s: Visibility test done with camera '%s'. Image resolution used: w = %d; h = %d",
-                 thisfunc, cam.name, w * scale, h * scale)
+    logging.info("%s: Visibility test done with camera '%s'", thisfunc, cam.name)
+    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
 
     if len(visible_vert_ind.keys()) == 1:
         return list(visible_vert_ind.values())[0]

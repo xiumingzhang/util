@@ -11,6 +11,7 @@ from os.path import abspath, basename, dirname, exists, join
 from shutil import copy
 import numpy as np
 import cv2
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)

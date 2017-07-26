@@ -10,6 +10,7 @@ from os import makedirs, remove
 from os.path import join, abspath, basename, dirname, exists
 import cv2
 import bpy
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)

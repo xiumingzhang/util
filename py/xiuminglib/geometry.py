@@ -5,8 +5,13 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
-from warnings import warn
+import logging
+from os.path import abspath
 import numpy as np
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
+
+logging.basicConfig(level=logging.INFO)
+thisfile = abspath(__file__)
 
 
 def cartesian2spherical(pts_cartesian):
@@ -66,6 +71,8 @@ def spherical2cartesian(pts_spherical):
 
     See cartesian2spherical for spherical convention, args and returns
     """
+    thisfunc = thisfile + '->spherical2cartesian()'
+
     pts_spherical = np.array(pts_spherical)
 
     # Validate inputs
@@ -78,7 +85,7 @@ def spherical2cartesian(pts_spherical):
 
     # Degrees?
     if (np.abs(pts_spherical[:, 1:]) > 2 * np.pi).any():
-        warn("Some input value falls outside [-2pi, 2pi]. Are you sure inputs are in radians?")
+        logging.warning("%s: Some input value falls outside [-2pi, 2pi]. Sure inputs are in radians?", thisfunc)
 
     # Compute x, y and z
     r = pts_spherical[:, 0]

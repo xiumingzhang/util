@@ -6,11 +6,11 @@ June 2017
 """
 
 from os.path import abspath
-from warnings import warn
 import logging
 import numpy as np
 import cv2
 from scipy.interpolate import RectBivariateSpline
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
@@ -136,7 +136,7 @@ def interp2(im, query_pts):
     query_y = query_pts[:, 1]
 
     if np.min(query_x) < 0 or np.max(query_x) > h or np.min(query_y) < 0 or np.max(query_y) > w:
-        warn("Sure you want to query points outside 'im'?")
+        logging.warning("%s: Sure you want to query points outside 'im'?", thisfunc)
 
     if c == 1:
         # Single channel
@@ -147,7 +147,7 @@ def interp2(im, query_pts):
         logging.info("%s:     ... done", thisfunc)
     else:
         # Multiple channels
-        warn("Support for 'im' having multiple channels has not been thoroughly tested!")
+        logging.warning("%s: Support for 'im' having multiple channels has not been thoroughly tested!", thisfunc)
         interp_val = np.zeros((len(query_x), c))
         for i in range(c):
             z = im[:, :, i]

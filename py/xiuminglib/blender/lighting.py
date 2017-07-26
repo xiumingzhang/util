@@ -6,10 +6,10 @@ July 2017
 """
 
 import logging
-from warnings import warn
 from os.path import abspath
 import numpy as np
 import bpy
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
@@ -43,7 +43,7 @@ def add_light_area(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=1, si
     thisfunc = thisfile + '->add_light_area()'
 
     if (np.abs(rot_vec_rad) > 2 * np.pi).any():
-        warn("Some input value falls outside [-2pi, 2pi]. Are you sure inputs are in radians?")
+        logging.warning("%s: Some input value falls outside [-2pi, 2pi]. Sure inputs are in radians?", thisfunc)
 
     bpy.ops.object.lamp_add(type='AREA', location=xyz, rotation=rot_vec_rad)
     area = bpy.context.active_object
