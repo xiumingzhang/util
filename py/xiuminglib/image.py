@@ -92,10 +92,13 @@ def remove_islands(im, min_n_pixels, connectivity=4):
 def query_float_locations(im, query_pts, method='bilinear'):
     """
     Query interpolated values of float lactions on image using
-        - Bivariate spline interpolation
-            + Fitting a global spline, so memory-intensive and shows global effects
-        - Bilinear interpolation (default)
-            + Local, so more memory-efficient
+        1. Bilinear interpolation (default)
+            - Can break big matrices into patches and work locally
+        2. Bivariate spline interpolation
+            - Fitting a global spline, so memory-intensive and shows global effects
+
+    Pixel values are considered as values at pixel centers. E.g., if im[0, 1] is 0.68,
+        then f(0.5, 1.5) is deemed to evaluate to 0.68 exactly
 
     Args:
         im: Rectangular grid of data
@@ -119,11 +122,11 @@ def query_float_locations(im, query_pts, method='bilinear'):
     thisfunc = thisfile + '->query_float_locations()'
 
     # Figure out image size and number of channels
-    if len(im.shape) == 3:
+    if im.ndim == 3:
         h, w, c = im.shape
         if c == 1: # single dimension
             im = im[:, :, 0]
-    elif len(im.shape) == 2:
+    elif im.ndim == 2:
         h, w = im.shape
         c = 1
     else:
@@ -135,8 +138,12 @@ def query_float_locations(im, query_pts, method='bilinear'):
     if query_pts.shape == (2,):
         is_one_point = True
         query_pts = query_pts.reshape(1, 2)
-    elif len(query_pts.shape) != 2 or query_pts.shape[1] != 2:
+    elif query_pts.ndim != 2 or query_pts.shape[1] != 2:
         raise ValueError("Shape of input must be either (2,) or (n, 2)")
+
+    # Querying one point, very likely in a loop -- no printing
+    if is_one_point:
+        logging.getLogger().setLevel(logging.WARN)
 
     x = np.arange(h) + 0.5 # pixel center
     y = np.arange(w) + 0.5
@@ -151,7 +158,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
 
         z = im
 
-        logging.info("%s: Interpolation started", thisfunc)
+        logging.info("%s: Interpolation (method: %s) started", thisfunc, method)
 
         if method == 'spline':
             spline_obj = RectBivariateSpline(x, y, z)
@@ -175,7 +182,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
 
             z = im[:, :, i]
 
-            logging.info("%s: Interpolation started for channel %d/%d", thisfunc, i + 1, c)
+            logging.info("%s: Interpolation (method: %s) started for channel %d/%d", thisfunc, method, i + 1, c)
 
             if method == 'spline':
                 spline_obj = RectBivariateSpline(x, y, z)
