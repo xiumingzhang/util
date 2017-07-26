@@ -9,7 +9,7 @@ from os.path import abspath
 import logging
 import numpy as np
 import cv2
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline, interp2d
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
@@ -89,27 +89,34 @@ def remove_islands(im, min_n_pixels, connectivity=4):
     return im_clean
 
 
-def interp2(im, query_pts):
+def query_float_locations(im, query_pts, method='bilinear'):
     """
-    Query interpolated values of float lactions (bivariate spline approximation)
+    Query interpolated values of float lactions on image using
+        - Bivariate spline interpolation
+            + Fitting a global spline, so memory-intensive and shows global effects
+        - Bilinear interpolation (default)
+            + Local, so more memory-efficient
 
     Args:
         im: Rectangular grid of data
             h-by-w or h-by-w-by-c numpy array
             Each of c channels is interpolated independently
         query_pts: Query locations
-            Numpy array of shape (n, 2) or (2,)
+            List/tuple/etc. convertible to a numpy array of shape (n, 2) or (2,)
             +-----------> dim1
             |
             |
             |
             v dim0
+        method: Interpolation method
+            'spline' or 'bilinear'
+            Optional; defaults to 'bilinear'
 
     Returns:
         interp_val: Interpolated values at query locations
             Numpy array of shape (n, c) or (c,)
     """
-    thisfunc = thisfile + '->interp2()'
+    thisfunc = thisfile + '->query_float_locations()'
 
     # Figure out image size and number of channels
     if len(im.shape) == 3:
@@ -123,6 +130,7 @@ def interp2(im, query_pts):
         raise ValueError("'im' must have either two or three dimensions")
 
     # Validate inputs
+    query_pts = np.array(query_pts)
     is_one_point = False
     if query_pts.shape == (2,):
         is_one_point = True
@@ -130,8 +138,8 @@ def interp2(im, query_pts):
     elif len(query_pts.shape) != 2 or query_pts.shape[1] != 2:
         raise ValueError("Shape of input must be either (2,) or (n, 2)")
 
-    x = np.arange(h)
-    y = np.arange(w)
+    x = np.arange(h) + 0.5 # pixel center
+    y = np.arange(w) + 0.5
     query_x = query_pts[:, 0]
     query_y = query_pts[:, 1]
 
@@ -140,20 +148,46 @@ def interp2(im, query_pts):
 
     if c == 1:
         # Single channel
+
         z = im
-        spline_obj = RectBivariateSpline(x, y, z)
+
         logging.info("%s: Interpolation started", thisfunc)
-        interp_val = spline_obj(query_x, query_y, grid=False)
+
+        if method == 'spline':
+            spline_obj = RectBivariateSpline(x, y, z)
+            interp_val = spline_obj(query_x, query_y, grid=False)
+
+        elif method == 'bilinear':
+            f = interp2d(y, x, z, kind='linear')
+            interp_val = f(query_y, query_x)
+
+        else:
+            raise NotImplementedError("Other interplation methods")
+
         logging.info("%s:     ... done", thisfunc)
+
     else:
         # Multiple channels
+
         logging.warning("%s: Support for 'im' having multiple channels has not been thoroughly tested!", thisfunc)
         interp_val = np.zeros((len(query_x), c))
         for i in range(c):
+
             z = im[:, :, i]
-            spline_obj = RectBivariateSpline(x, y, z)
+
             logging.info("%s: Interpolation started for channel %d/%d", thisfunc, i + 1, c)
-            interp_val[:, i] = spline_obj(query_x, query_y, grid=False)
+
+            if method == 'spline':
+                spline_obj = RectBivariateSpline(x, y, z)
+                interp_val[:, i] = spline_obj(query_x, query_y, grid=False)
+
+            elif method == 'bilinear':
+                f = interp2d(y, x, z, kind='linear')
+                interp_val[:, i] = f(query_y, query_x)
+
+            else:
+                raise NotImplementedError("Other interplation methods")
+
             logging.info("%s:     ... done", thisfunc)
 
     if is_one_point:
