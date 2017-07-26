@@ -6,9 +6,14 @@ July 2017
 """
 
 import logging
-from os.path import abspath
+from os import remove, rename
+from os.path import abspath, dirname, basename
 import bpy
+import bmesh
+import bpy_types
 from mathutils import Vector, Matrix
+import numpy as np
+import cv2
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
@@ -183,6 +188,174 @@ def get_camera_mat(cam):
     # Camera matrix
     cam_mat = int_mat * ext_mat
 
-    logging.info("%s: Done computing camera matrix", thisfunc)
+    logging.info("%s: Done computing camera matrix. Image resolution used: w = %d; h = %d",
+                 thisfunc, w * scale, h * scale)
 
     return cam_mat, int_mat, ext_mat
+
+
+def get_camera_zbuffer(cam, save_to=None):
+    """
+    Get z-buffer of Blender camera
+        Values are z components in camera-centered coordinate system:
+            - x is horizontal
+            - y is down (to align to the actual pixel coordinates)
+            - right-handed: positive z is look-at direction and means "in front of camera"
+        Origin is camera center, not image plane
+
+    Args:
+        cam: Camera object
+            bpy_types.Object
+        save_to: Path to which the .exr z-buffer will be saved
+            String
+            Optional; defaults to None (don't save)
+
+    Returns:
+        zbuffer: Camera z-buffer
+            2D numpy array
+    """
+    thisfunc = thisfile + '->get_camera_zbuffer()'
+
+    if save_to is None:
+        outpath = '/tmp/zbuffer'
+    elif save_to.endswith('.exr'):
+        outpath = save_to[:-4]
+
+    # Duplicate scene to avoid touching the original scene
+    bpy.ops.scene.new(type='LINK_OBJECTS')
+
+    scene = bpy.context.scene
+    scene.camera = cam
+    scene.use_nodes = True
+    node_tree = scene.node_tree
+    nodes = node_tree.nodes
+
+    # Remove all nodes
+    scene.use_nodes = True
+    for node in nodes:
+        nodes.remove(node)
+
+    # Set up nodes for z pass
+    nodes.new('CompositorNodeRLayers')
+    nodes.new('CompositorNodeOutputFile')
+    node_tree.links.new(nodes['Render Layers'].outputs[2], nodes['File Output'].inputs[0])
+    nodes['File Output'].format.file_format = 'OPEN_EXR'
+    nodes['File Output'].format.color_mode = 'RGB'
+    nodes['File Output'].format.color_depth = '32' # full float
+    nodes['File Output'].base_path = dirname(outpath)
+    nodes['File Output'].file_slots[0].path = basename(outpath)
+
+    # Render
+    scene.cycles.samples = 1
+    bpy.ops.render.render(write_still=True)
+
+    w = scene.render.resolution_x
+    h = scene.render.resolution_y
+    scale = scene.render.resolution_percentage / 100.
+
+    # Delete this new scene
+    bpy.ops.scene.delete()
+
+    # Load z-buffer as array
+    exr_path = outpath + '%04d' % scene.frame_current + '.exr'
+    im = cv2.imread(exr_path, cv2.IMREAD_UNCHANGED)
+    assert (np.array_equal(im[:, :, 0], im[:, :, 1]) and np.array_equal(im[:, :, 0], im[:, :, 2])), \
+        "BGR channels of the z-buffer should be all the same, but they are not"
+    zbuffer = im[:, :, 0]
+
+    # Delete or move the .exr as user wants
+    if save_to is None:
+        # User doesn't want it -- delete
+        remove(exr_path)
+    else:
+        # User wants it -- rename
+        rename(exr_path, outpath + '.exr')
+
+    logging.info("%s: Got z-buffer of camera '%s'. Image resolution used: w = %d; h = %d",
+                 thisfunc, cam.name, w * scale, h * scale)
+
+    return zbuffer
+
+
+def get_visible_verts_from(cam, ooi=None, ignore_occlusion=False, prec_eps=1e-6):
+    """
+    Get vertices that are visible (projected within frame AND unoccluded) from Blender camera
+        You can opt to ignore depth ordering such that occluded vertices are also considered visible
+
+    Args:
+        cam: Camera object
+            bpy_types.Object
+        ooi: Object(s) of interest
+            bpy_types.Object or list thereof
+            Optional; defaults to None (all mesh objects)
+        ignore_occlusion: Whether to ignore occlusion
+            Boolean
+            Optional; defaults to False
+        prec_eps: Threshold for percentage difference between the query z value and buffered z value
+                z_q considered equal to z_b when abs(z_q - z_b) / z_b < prec_eps
+            Float
+            Optional; defaults to 1e-6
+
+    Returns:
+        visible_vert_ind: Indices of vertices that are visible
+            List of non-negative integers or dictionary thereof with object names as keys
+    """
+    thisfunc = thisfile + '->get_visible_verts_from()'
+
+    if ooi is None:
+        ooi = [o for o in bpy.data.objects if o.type == 'MESH']
+    elif isinstance(ooi, bpy_types.Object):
+        ooi = [ooi]
+
+    scene = bpy.context.scene
+    w, h = scene.render.resolution_x, scene.render.resolution_y
+    scale = scene.render.resolution_percentage / 100.
+
+    # Get camera matrix
+    cam_mat, _, ext_mat = get_camera_mat(cam)
+
+    # Get z-buffer
+    if not ignore_occlusion:
+        zbuffer = get_camera_zbuffer(cam)
+
+    visible_vert_ind = {}
+
+    # For each object of interest
+    for obj in ooi:
+
+        # Get mesh data from object
+        scene.objects.active = obj
+        bpy.ops.object.mode_set(mode='EDIT')
+        mesh = bmesh.from_edit_mesh(obj.data)
+
+        vert_ind = []
+        # For each of its vertices
+        for vert in mesh.verts:
+
+            # Check if its projection falls inside frame
+            v_world = obj.matrix_world * vert.co # local to world
+            uv = np.array(cam_mat * v_world) # project to 2D
+            uv = uv[:-1] / uv[-1]
+            if uv[0] >= 0 and uv[0] < w * scale and uv[1] >= 0 and uv[1] < h * scale:
+
+                # Yes
+                if ignore_occlusion:
+                    # Don't care occlusion -- consider visible already
+                    vert_ind.append(vert.index)
+                else:
+                    # Proceed to check occlusion with z-buffer
+                    v_cv = ext_mat * v_world # world to camera to CV
+                    z = v_cv[-1]
+                    z_min = zbuffer[int(uv[1]), int(uv[0])]
+                    if (z - z_min) / z_min < prec_eps:
+                        vert_ind.append(vert.index)
+
+        visible_vert_ind[obj.name] = vert_ind
+
+    logging.info("%s: Visibility test done with camera '%s'. Image resolution used: w = %d; h = %d",
+                 thisfunc, cam.name, w * scale, h * scale)
+
+    if len(visible_vert_ind.keys()) == 1:
+        return list(visible_vert_ind.values())[0]
+    else:
+        return visible_vert_ind
