@@ -109,7 +109,7 @@ def save_to_file(outpath, delete_overwritten=False):
     logging.info("%s: Saved to %s", thisfunc, outpath)
 
 
-def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
+def render_to_file(outpath, text=None, cam_names=None, hide=None):
     """
     Render current scene to images with cameras in scene
 
@@ -129,12 +129,12 @@ def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
         cam_names: Render views from which camera
             List of strings (camera names)
             Optional; defaults to None (render all cameras)
-        hide_from_cam: What objects should be hidden from which camera
+        hide: What objects should be hidden from which camera
             Dictionary of the following format
             {
-                'cam1': 'obj1',
-                'cam2': ['obj1', 'obj2']
-                        ...
+                'name-of-cam1': 'name-of-obj1',
+                'name-of-cam2': ['name-of-obj1', 'name-of-obj2']
+                    ...
             }
             Optional; defaults to None
 
@@ -164,10 +164,14 @@ def render_to_file(outpath, text=None, cam_names=None, hide_from_cam=None):
                 result_path.append(outpath_final)
 
                 # Optionally set camera visibility for objects
-                if hide_from_cam is not None:
+                if hide is not None:
                     for obj in bpy.data.objects:
                         if obj.type == 'MESH':
-                            obj.hide_render = obj.name in hide_from_cam.get(cam.name, []) # if no such key, returns empty list
+                            ignore_list = hide.get(cam.name, []) # if no such key, returns empty list
+                            if not isinstance(ignore_list, list):
+                                # Single object
+                                ignore_list = [ignore_list]
+                            obj.hide_render = obj.name in ignore_list
 
                 # Render
                 bpy.ops.render.render(write_still=True)
