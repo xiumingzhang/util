@@ -182,3 +182,61 @@ def subdivide_mesh(obj, n_subdiv=2):
     bpy.ops.object.modifier_apply(modifier='Subsurf', apply_as='DATA')
 
     logging.info("%s: Subdivided mesh of %s", thisfunc, obj.name)
+
+
+def select(obj, vert_ind, select_type='vertex'):
+    """
+    Select vertices or their associated edges/faces in edit mode
+
+    Args:
+        obj: Object
+            bpy_types.Object
+        vert_ind: A single vertex index or a list of many
+            Non-negative integer or list thereof
+        select_type: Type of mesh elements to select
+            'vertex', 'edge' or 'face'
+            Optional; defaults to 'vertex'
+    """
+    thisfunc = thisfile + '->select()'
+
+    if isinstance(vert_ind, int):
+        vert_ind = [vert_ind]
+
+    # Edit mode
+    scene = bpy.context.scene
+    scene.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    # Deselect all
+    bpy.ops.mesh.select_mode(type='FACE')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.mesh.select_mode(type='EDGE')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.mesh.select_mode(type='VERT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+
+    bm = bmesh.from_edit_mesh(obj.data)
+    bvs = bm.verts
+
+    bvs.ensure_lookup_table()
+    for i in vert_ind:
+        bv = bvs[i]
+
+        if select_type == 'vertex':
+            bv.select = True
+
+        elif select_type == 'edge':
+            for be in bv.link_edges:
+                be.select = True
+
+        elif select_type == 'face':
+            for bf in bv.link_faces:
+                bf.select = True
+
+        else:
+            raise ValueError("Wrong selection type")
+
+    # Update viewport
+    scene.objects.active = scene.objects.active
+
+    logging.info("%s: Selected %s elements of %s", thisfunc, select_type, obj.name)
