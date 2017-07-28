@@ -12,6 +12,7 @@ import re
 from os.path import abspath
 import numpy as np
 import bpy
+import bmesh
 from mathutils import Matrix
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
@@ -133,6 +134,24 @@ def setup_diffuse_nodetree(obj):
     logging.info("%s: Diffuse node tree set up for  %s", thisfunc, obj.name)
 
 
+def get_bmesh(obj):
+    """
+    Get Blender mesh data from object
+
+    Args:
+        obj: Object
+            bpy_types.Object
+
+    Returns:
+        bm: Blender mesh data
+            BMesh
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+
+    return bm
+
+
 def subdivide_mesh(obj, n_subdiv=2):
     """
     Subdivide mesh of object
@@ -146,7 +165,7 @@ def subdivide_mesh(obj, n_subdiv=2):
     """
     thisfunc = thisfile + '->subdivide_mesh()'
 
-    # All objects need to be in 'EDIT' mode to apply modifiers -- maybe a Blender bug?
+    # All objects need to be in 'OBJECT' mode to apply modifiers -- maybe a Blender bug?
     for o in bpy.data.objects:
         bpy.context.scene.objects.active = o
         bpy.ops.object.mode_set(mode='OBJECT')

@@ -184,16 +184,6 @@ def get_camera_matrix(cam):
     scale = scene.render.resolution_percentage / 100.
     pixel_aspect_ratio = scene.render.pixel_aspect_x / scene.render.pixel_aspect_y
 
-    # Do these intrinsic parameters make sense together?
-    mm_per_pix_horizontal = sensor_width_mm / (w * scale)
-    mm_per_pix_vertical = sensor_height_mm / (h * scale)
-    assert (mm_per_pix_horizontal / mm_per_pix_vertical == pixel_aspect_ratio), \
-        ValueError((
-            "%s: Render resolutions (w = %d; h = %d), sensor size (w = %d; h = %d), and "
-            "pixel aspect ratio (w / h = %f) don't make sense together, so projections "
-            "with this camera matrix may not match with Blender viewport/rendering"
-        ) % (thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio))
-
     if cam.data.sensor_fit == 'VERTICAL':
         # h times pixel height must fit into sensor_height_mm
         # w / pixel_aspect_ratio times pixel width will then fit into sensor_width_mm
