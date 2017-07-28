@@ -28,7 +28,7 @@ def remove_object(name_pattern):
             String (regex supported)
             Use '.*' to remove all objects
     """
-    thisfunc = thisfile + '->clear_all()'
+    thisfunc = thisfile + '->remove_object()'
 
     # Regex
     assert (name_pattern != '*'), "Want to match everything? Correct regex for this is '.*'"
@@ -106,6 +106,31 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         return obj_list[0]
     else:
         return obj_list
+
+
+def setup_diffuse_nodetree(obj):
+    """
+    Set up a simple diffuse node tree for imported object bundled with texture map
+
+    Args:
+        obj: Object bundled with texture map
+            bpy_types.Object
+    """
+    thisfunc = thisfile + '->setup_diffuse_nodetree()'
+
+    if bpy.context.scene.render.engine != 'CYCLES':
+        raise NotImplementedError("Only Cycles is supported for now")
+
+    obj.active_material.use_nodes = True
+    node_tree = obj.active_material.node_tree
+    node_tree.nodes.new('ShaderNodeTexImage')
+    node_tree.nodes['Image Texture'].image = obj.active_material.active_texture.image
+    node_tree.links.new(
+        node_tree.nodes['Image Texture'].outputs[0],
+        node_tree.nodes['Diffuse BSDF'].inputs[0]
+    )
+
+    logging.info("%s: Diffuse node tree set up for  %s", thisfunc, obj.name)
 
 
 def subdivide_mesh(obj, n_subdiv=2):

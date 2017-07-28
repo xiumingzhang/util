@@ -132,17 +132,18 @@ def intrinsics_compatible_with_scene(cam):
 
     if mm_per_pix_horizontal / mm_per_pix_vertical == pixel_aspect_ratio:
 
-        logging.info("%s: Camera intrinsic parameters comptible with scene settings", thisfunc)
+        logging.info("%s: OK", thisfunc)
 
         return True
 
     else:
+        compatible_sensor_height_mm = sensor_width_mm / w * h / pixel_aspect_ratio
 
         logging.error((
             "%s: Render resolutions (w = %d; h = %d), sensor size (w = %d; h = %d), and "
             "pixel aspect ratio (w / h = %f) don't make sense together. This could cause "
-            "unexpected behaviors later. Please fix it"
-        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
+            "unexpected behaviors later. Consider using %f for sensor height"
+        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio, compatible_sensor_height_mm)
 
         return False
 
