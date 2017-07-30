@@ -109,6 +109,48 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         return obj_list
 
 
+def add_cylinder_between(pt1, pt2, r, name=None):
+    """
+    Add a cylinder specified by two end points and radius
+        Useful for visualizing rays in ray tracing
+
+    Args:
+        pt1: Global coordinates of point 1
+            Array-like containing three floats
+        pt2: Global coordinates of point 2
+            Array-like containing three floats
+        r: Cylinder radius
+            Radius
+        name: Cylinder name
+            String
+            Optional; defaults to Blender defaults
+
+    Returns:
+        cylinder_obj: Handle of imported cylinder
+            bpy_types.Object
+    """
+    pt1 = np.array(pt1)
+    pt2 = np.array(pt2)
+
+    d = pt2 - pt1
+
+    # Add cylinder at the correct location
+    dist = np.linalg.norm(d)
+    loc = (pt1[0] + d[0] / 2, pt1[1] + d[1] / 2, pt1[2] + d[2] / 2)
+    bpy.ops.mesh.primitive_cylinder_add(radius=r, depth=dist, location=loc)
+
+    cylinder_obj = bpy.context.object
+
+    if name is not None:
+        cylinder_obj.name = name
+
+    # Further rotate it accordingly
+    phi = np.arctan2(d[1], d[0])
+    theta = np.arccos(d[2] / dist)
+    cylinder_obj.rotation_euler[1] = theta
+    cylinder_obj.rotation_euler[2] = phi
+
+
 def setup_diffuse_nodetree(obj):
     """
     Set up a simple diffuse node tree for imported object bundled with texture map
