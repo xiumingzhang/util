@@ -184,7 +184,7 @@ def subdivide_mesh(obj, n_subdiv=2):
     logging.info("%s: Subdivided mesh of %s", thisfunc, obj.name)
 
 
-def select(obj, vert_ind, select_type='vertex'):
+def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
     """
     Select vertices or their associated edges/faces in edit mode
 
@@ -195,9 +195,8 @@ def select(obj, vert_ind, select_type='vertex'):
             Non-negative integer or list thereof
         select_type: Type of mesh elements to select
             'vertex', 'edge' or 'face'
-            Optional; defaults to 'vertex'
     """
-    thisfunc = thisfile + '->select()'
+    thisfunc = thisfile + '->select_mesh_elements_by_vertices()'
 
     if isinstance(vert_ind, int):
         vert_ind = [vert_ind]
@@ -225,10 +224,12 @@ def select(obj, vert_ind, select_type='vertex'):
         if select_type == 'vertex':
             bv.select = True
 
+        # Select all edges with this vertex at an end
         elif select_type == 'edge':
             for be in bv.link_edges:
                 be.select = True
 
+        # Select all faces with this vertex
         elif select_type == 'face':
             for bf in bv.link_faces:
                 bf.select = True

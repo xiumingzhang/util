@@ -191,7 +191,7 @@ def render_to_file(outpath, text=None, cam_names=None, hide=None):
         return result_path
 
 
-def easyset(w=None, h=None, n_samples=None):
+def easyset(w=None, h=None, n_samples=None, ao=None):
     """
     Set some of the scene attributes more easily
 
@@ -204,6 +204,9 @@ def easyset(w=None, h=None, n_samples=None):
             Optional; no change if not given
         n_samples: Number of samples
             Integer
+            Optional; no change if not given
+        ao: Ambient occlusion
+            Boolean
             Optional; no change if not given
     """
     scene = bpy.context.scene
@@ -220,3 +223,7 @@ def easyset(w=None, h=None, n_samples=None):
             scene.cycles.samples = n_samples
         else:
             raise NotImplementedError("Rendering engines other than Cycles")
+
+    # Ambient occlusion
+    if ao is not None:
+        bpy.context.scene.world.light_settings.use_ambient_occlusion = ao
