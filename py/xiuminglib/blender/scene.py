@@ -126,8 +126,8 @@ def render_to_file(outpath, text=None, cam_names=None, hide=None):
                 'thickness': 2
             }
             Optional; defaults to None
-        cam_names: Render views from which camera
-            List of strings (camera names)
+        cam_names: Name(s) of camera(s) through which scene is rendered
+            String or list thereof
             Optional; defaults to None (render all cameras)
         hide: What objects should be hidden from which camera
             Dictionary of the following format
@@ -143,6 +143,9 @@ def render_to_file(outpath, text=None, cam_names=None, hide=None):
             String or list thereof
     """
     thisfunc = thisfile + '->render_to_file()'
+
+    if isinstance(cam_names, str):
+        cam_names = [cam_names]
 
     outdir = dirname(outpath)
     if not exists(outdir):

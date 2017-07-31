@@ -151,6 +151,74 @@ def add_cylinder_between(pt1, pt2, r, name=None):
     cylinder_obj.rotation_euler[2] = phi
 
 
+def color_vertices(obj, vert_ind, colors):
+    """
+    Color vertices
+
+    Args:
+        obj: Object
+            bpy_types.Object
+        vert_ind: Index/indices of vertex/vertices to color
+            Integer or list thereof
+        colors: RGB value(s) to paint on vertex/vertices
+            Tuple of three floats or list thereof
+                - If one tuple, this color will be applied to all
+                - If list of tuples, must be of same length as vert_ind
+    """
+    thisfunc = thisfile + '->color_vertices()'
+
+    # Validate inputs
+    if isinstance(vert_ind, int):
+        vert_ind = [vert_ind]
+    if isinstance(colors, tuple):
+        colors = [colors] * len(vert_ind)
+    assert (len(colors) == len(vert_ind)), \
+        "'colors' and 'vert_ind' must be of the same length, or 'colors' is a single tuple"
+
+    scene = bpy.context.scene
+    scene.objects.active = obj
+    obj.select = True
+
+    mesh = obj.data
+
+    if mesh.vertex_colors:
+        vcol_layer = mesh.vertex_colors.active
+    else:
+        vcol_layer = mesh.vertex_colors.new()
+
+    # A vertex and one of its edges combined are called a loop, which has a color
+    for poly in mesh.polygons:
+        for loop_idx in poly.loop_indices:
+            loop_vert_idx = mesh.loops[loop_idx].vertex_index
+            try:
+                # In the list
+                color_idx = vert_ind.index(loop_vert_idx)
+                vcol_layer.data[loop_idx].color = colors[color_idx]
+            except ValueError:
+                # Not found
+                pass
+
+    # Set up Cycles node tree
+    obj.active_material.use_nodes = True
+    node_tree = obj.active_material.node_tree
+    nodes = node_tree.nodes
+
+    # Remove all nodes
+    for node in nodes:
+        nodes.remove(node)
+
+    # Set up nodes for vertex colors
+    nodes.new('ShaderNodeAttribute')
+    nodes.new('ShaderNodeBsdfDiffuse')
+    nodes.new('ShaderNodeOutputMaterial')
+    nodes['Attribute'].attribute_name = vcol_layer.name
+    node_tree.links.new(nodes['Attribute'].outputs[0], nodes['Diffuse BSDF'].inputs[0])
+    node_tree.links.new(nodes['Diffuse BSDF'].outputs[0], nodes['Material Output'].inputs[0])
+
+    logging.info("%s: Vertex color(s) added to %s", thisfunc, obj.name)
+    logging.warning("%s:     ..., so node tree of %s has changed", thisfunc, obj.name)
+
+
 def setup_diffuse_nodetree(obj):
     """
     Set up a simple diffuse node tree for imported object bundled with texture map

@@ -295,7 +295,6 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
     nodes = node_tree.nodes
 
     # Remove all nodes
-    scene.use_nodes = True
     for node in nodes:
         nodes.remove(node)
 
