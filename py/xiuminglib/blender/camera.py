@@ -75,6 +75,63 @@ def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERS
     return cam
 
 
+def easyset(cam, xyz=None, rot_vec_rad=None, name=None, proj_model=None, f=None, sensor_fit=None, sensor_width=None, sensor_height=None):
+    """
+    Set camera parameters more easily
+
+    Args:
+        cam: Handle of camera
+            bpy_types.Object
+        xyz: Location
+            3-tuple of floats
+            Optional; defaults to None (no change)
+        rot_vec_rad: Rotation angle in radians around x, y and z
+            3-tuple of floats
+            Optional; defaults to None (no change)
+        name: Light object name
+            String
+            Optional; defaults to None (no change)
+        proj_model: Camera projection model
+            'PERSP', 'ORTHO', or 'PANO'
+            Optional; defaults to None (no change)
+        f: Focal length in mm
+            Float
+            Optional; defaults to None (no change)
+        sensor_fit: Sensor fit; also see get_camera_matrix()
+            'HORIZONTAL' or 'VERTICAL'
+            Optional; defaults to None (no change)
+        sensor_width: Sensor width in mm
+            Float
+            Optional; defaults to None (no change)
+        sensor_height: Sensor height in mm
+            Float
+            Optional; defaults to None (no change)
+    """
+    if name is not None:
+        cam.name = name
+
+    if xyz is not None:
+        cam.location = xyz
+
+    if rot_vec_rad is not None:
+        cam.rotation_euler = rot_vec_rad
+
+    if proj_model is not None:
+        cam.data.type = proj_model
+
+    if f is not None:
+        cam.data.lens = f
+
+    if sensor_fit is not None:
+        cam.data.sensor_fit = sensor_fit
+
+    if sensor_width is not None:
+        cam.data.sensor_width = sensor_width
+
+    if sensor_height is not None:
+        cam.data.sensor_height = sensor_height
+
+
 def point_camera_to(cam, xyz_target):
     """
     Point camera to target
@@ -172,7 +229,9 @@ def get_camera_matrix(cam):
 
     # Check if camera intrinsic parameters comptible with render settings
     if not intrinsics_compatible_with_scene(cam):
-        raise ValueError("Render settings and camera intrinsic parameters mismatch")
+        raise ValueError(("Render settings and camera intrinsic parameters mismatch. "
+                          "Such computed matrices will not make sense. Make them consistent first. "
+                          "See error message from 'intrinsics_compatible_with_scene()' above for advice"))
 
     # Intrinsics
 
