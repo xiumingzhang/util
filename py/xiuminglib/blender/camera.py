@@ -318,6 +318,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
 
     # Render
     scene.cycles.samples = 1
+    scene.render.filepath = '/tmp/rgb.png' # redirect RGB rendering to avoid overwritting
     bpy.ops.render.render(write_still=True)
 
     w = scene.render.resolution_x
