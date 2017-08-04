@@ -241,7 +241,7 @@ def setup_diffuse_nodetree(obj):
         node_tree.nodes['Diffuse BSDF'].inputs[0]
     )
 
-    logging.info("%s: Diffuse node tree set up for  %s", thisfunc, obj.name)
+    logging.info("%s: Diffuse node tree set up for %s", thisfunc, obj.name)
 
 
 def get_bmesh(obj):

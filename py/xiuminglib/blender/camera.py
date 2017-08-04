@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERSP', f=35, sensor_fit='HORIZONTAL', sensor_width=32, sensor_height=18):
+def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERSP', f=35, sensor_fit='HORIZONTAL', sensor_width=32, sensor_height=18, clip_start=0.1, clip_end=100):
     """
     Add camera to current scene
 
@@ -48,6 +48,12 @@ def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERS
         sensor_height: Sensor height in mm
             Float
             Optional; defaults to 18
+        clip_start: Near clipping distance
+            Float
+            Optional; defaults to 0.1
+        clip_end: Far clipping distance
+            Float
+            Optional; defaults to 100
 
     Returns:
         cam: Handle of added camera
@@ -69,6 +75,8 @@ def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERS
     cam.data.sensor_fit = sensor_fit
     cam.data.sensor_width = sensor_width
     cam.data.sensor_height = sensor_height
+    cam.data.clip_start = clip_start
+    cam.data.clip_end = clip_end
 
     logging.info("%s: Camera added", thisfunc)
 
