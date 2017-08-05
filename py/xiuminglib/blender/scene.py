@@ -166,15 +166,17 @@ def render_to_file(outpath, text=None, cam_names=None, hide=None):
                 bpy.context.scene.render.filepath = outpath_final
                 result_path.append(outpath_final)
 
-                # Optionally set camera visibility for objects
-                if hide is not None:
-                    for obj in bpy.data.objects:
-                        if obj.type == 'MESH':
+                # Optionally set object visibility in rendering
+                for obj in bpy.data.objects:
+                    if obj.type == 'MESH':
+                        if hide is not None:
                             ignore_list = hide.get(cam.name, []) # if no such key, returns empty list
                             if not isinstance(ignore_list, list):
                                 # Single object
                                 ignore_list = [ignore_list]
                             obj.hide_render = obj.name in ignore_list
+                        else:
+                            obj.hide_render = False
 
                 # Render
                 bpy.ops.render.render(write_still=True)
