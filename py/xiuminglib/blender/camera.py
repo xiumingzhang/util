@@ -422,7 +422,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
     return zbuffer
 
 
-def get_visible_vertices(cam, obj, ignore_occlusion=False, prec_z_eps=1e-6, hide=None):
+def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide=None):
     """
     Get vertices that are visible (projected within frame AND unoccluded) from Blender camera
         You can opt to ignore z-buffer such that occluded vertices are also considered visible
@@ -435,8 +435,8 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, prec_z_eps=1e-6, hide
         ignore_occlusion: Whether to ignore occlusion (including self-occlusion)
             Boolean
             Optional; defaults to False
-        prec_z_eps: Threshold for percentage difference between the query z_q and buffered z_b
-                z_q considered equal to z_b when abs(z_q - z_b) / z_b < prec_z_eps
+        perc_z_eps: Threshold for percentage difference between the query z_q and buffered z_b
+                z_q considered equal to z_b when abs(z_q - z_b) / z_b < perc_z_eps
             Float
             Optional; defaults to 1e-6
             Useless if ignore_occlusion
@@ -463,17 +463,15 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, prec_z_eps=1e-6, hide
         zbuffer = get_camera_zbuffer(cam, hide=hide)
 
     # Get mesh data from object
-    scene.objects.active = obj
-    orig_obj_mode = obj.mode
-    bpy.ops.object.mode_set(mode='EDIT')
-    mesh = bmesh.from_edit_mesh(obj.data)
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
 
     visible_vert_ind = []
     # For each of its vertices
-    for vert in mesh.verts:
+    for bv in bm.verts:
 
         # Check if its projection falls inside frame
-        v_world = obj.matrix_world * vert.co # local to world
+        v_world = obj.matrix_world * bv.co # local to world
         uv = np.array(cam_mat * v_world) # project to 2D
         uv = uv[:-1] / uv[-1]
         if uv[0] >= 0 and uv[0] < w * scale and uv[1] >= 0 and uv[1] < h * scale:
@@ -481,17 +479,14 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, prec_z_eps=1e-6, hide
 
             if ignore_occlusion:
                 # Considered visible already
-                visible_vert_ind.append(vert.index)
+                visible_vert_ind.append(bv.index)
             else:
                 # Proceed to check occlusion with z-buffer
                 v_cv = ext_mat * v_world # world to camera to CV
                 z = v_cv[-1]
                 z_min = zbuffer[int(uv[1]), int(uv[0])]
-                if (z - z_min) / z_min < prec_z_eps:
-                    visible_vert_ind.append(vert.index)
-
-    # Restore the object mode
-    bpy.ops.object.mode_set(mode=orig_obj_mode)
+                if (z - z_min) / z_min < perc_z_eps:
+                    visible_vert_ind.append(bv.index)
 
     logging.info("%s: Visibility test done with camera '%s'", thisfunc, cam.name)
     logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
