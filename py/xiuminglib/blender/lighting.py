@@ -16,12 +16,12 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def add_light_sun(loc=(0, 0, 0), target=(1, 1, 1), name=None, energy=1, size=0.1):
+def add_light_sun(xyz=(0, 0, 0), target=(1, 1, 1), name=None, energy=1, size=0.1):
     """
     Add a sun lamp that emits parallel light rays
 
     Args:
-        loc: Location only used to compute light ray direction
+        xyz: Location only used to compute light ray direction
             3-tuple of floats
             Optional; defaults to (0, 0, 0)
         target: Target location to which light rays point from 'xyz'
@@ -43,7 +43,7 @@ def add_light_sun(loc=(0, 0, 0), target=(1, 1, 1), name=None, energy=1, size=0.1
     """
     thisfunc = thisfile + '->add_light_sun()'
 
-    bpy.ops.object.lamp_add(type='SUN', location=loc)
+    bpy.ops.object.lamp_add(type='SUN', location=xyz)
     sun = bpy.context.active_object
 
     if name is not None:
