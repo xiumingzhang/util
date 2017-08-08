@@ -16,7 +16,30 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def add_light_sun(xyz=(0, 0, 0), target=(1, 1, 1), name=None, energy=1, size=0.1):
+def point_light_to(light, target):
+    """
+    Point directional light to a target
+
+    Args:
+        light: Light object
+            bpy_types.Object
+        target: Target location to which light rays point
+            3-tuple of floats
+    """
+    thisfunc = thisfile + '->point_light_to()'
+
+    # Point it to target
+    direction = Vector(target) - light.location
+    # Find quaternion that rotates lamp facing direction '-Z' so that it aligns with 'direction'
+    # This rotation is not unique because the rotated lamp can still rotate about direction vector
+    # Specifying 'Y' gives the rotation quaternion with lamp's 'Y' pointing up
+    rot_quat = direction.to_track_quat('-Z', 'Y')
+    light.rotation_euler = rot_quat.to_euler()
+
+    logging.info("%s: Lamp %s points to %s now", thisfunc, light.name, target)
+
+
+def add_light_sun(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=1, size=0.1):
     """
     Add a sun lamp that emits parallel light rays
 
@@ -24,9 +47,9 @@ def add_light_sun(xyz=(0, 0, 0), target=(1, 1, 1), name=None, energy=1, size=0.1
         xyz: Location only used to compute light ray direction
             3-tuple of floats
             Optional; defaults to (0, 0, 0)
-        target: Target location to which light rays point from 'xyz'
+        rot_vec_rad: Rotation angle in radians around x, y and z
             3-tuple of floats
-            Optional; defaults to (1, 1, 1)
+            Optional; defaults to (0, 0, 0)
         name: Light object name
             String
             Optional
@@ -43,19 +66,11 @@ def add_light_sun(xyz=(0, 0, 0), target=(1, 1, 1), name=None, energy=1, size=0.1
     """
     thisfunc = thisfile + '->add_light_sun()'
 
-    bpy.ops.object.lamp_add(type='SUN', location=xyz)
+    bpy.ops.object.lamp_add(type='SUN', location=xyz, rotation=rot_vec_rad)
     sun = bpy.context.active_object
 
     if name is not None:
         sun.name = name
-
-    # Point it to target
-    direction = Vector(target) - sun.location
-    # Find quaternion that rotates light ray direction '-Z' so that it aligns with 'direction'
-    # This rotation is not unique because the rotated lamp can still rotate about direction vector
-    # Specifying 'Y' gives the rotation quaternion with lamp's 'Y' pointing up
-    rot_quat = direction.to_track_quat('-Z', 'Y')
-    sun.rotation_euler = rot_quat.to_euler()
 
     sun.data.shadow_soft_size = size # larger means softer shadows
 
