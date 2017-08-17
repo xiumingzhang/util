@@ -8,6 +8,7 @@ July 2017
 import logging
 from os import remove, rename
 from os.path import abspath, dirname, basename
+from time import time
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
@@ -348,7 +349,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
                 "'hide' should contain object names (i.e., strings), not object(s) per se"
 
     if save_to is None:
-        outpath = '/tmp/zbuffer'
+        outpath = '/tmp_%s/zbuffer' % time()
     elif save_to.endswith('.exr'):
         outpath = save_to[:-4]
 
@@ -385,7 +386,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
 
     # Render
     scene.cycles.samples = 1
-    scene.render.filepath = '/tmp/rgb.png' # redirect RGB rendering to avoid overwritting
+    scene.render.filepath = '/tmp_%s/rgb.png' % time() # redirect RGB rendering to avoid overwritting
     bpy.ops.render.render(write_still=True)
 
     w = scene.render.resolution_x
