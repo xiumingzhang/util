@@ -28,8 +28,10 @@ def point_light_to(light, target):
     """
     thisfunc = thisfile + '->point_light_to()'
 
+    target = Vector(target)
+
     # Point it to target
-    direction = Vector(target) - light.location
+    direction = target - light.location
     # Find quaternion that rotates lamp facing direction '-Z' so that it aligns with 'direction'
     # This rotation is not unique because the rotated lamp can still rotate about direction vector
     # Specifying 'Y' gives the rotation quaternion with lamp's 'Y' pointing up

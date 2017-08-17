@@ -425,6 +425,8 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
 def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide=None):
     """
     Get vertices that are visible (projected within frame AND unoccluded) from Blender camera
+        Inaccurate when object's own depth variation is small compared with its overall depth
+        Since z-buffer may cover other objects, this function takes occlusion by other objects into account
         You can opt to ignore z-buffer such that occluded vertices are also considered visible
 
     Args:

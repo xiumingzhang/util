@@ -26,7 +26,7 @@ def remove_object(name_pattern):
 
     Args:
         name_pattern: Names of objects to remove
-            String (regex supported)
+            String (python regex supported)
             Use '.*' to remove all objects
     """
     thisfunc = thisfile + '->remove_object()'
@@ -153,7 +153,8 @@ def add_cylinder_between(pt1, pt2, r, name=None):
 
 def color_vertices(obj, vert_ind, colors):
     """
-    Color vertices
+    Color each vertex of interest with the given color; i.e., same color for all its loops
+        Useful for making a 3D heatmap
 
     Args:
         obj: Object
@@ -161,7 +162,7 @@ def color_vertices(obj, vert_ind, colors):
         vert_ind: Index/indices of vertex/vertices to color
             Integer or list thereof
         colors: RGB value(s) to paint on vertex/vertices
-            Tuple of three floats or list thereof
+            Tuple of three floats in [0, 1] or list thereof
                 - If one tuple, this color will be applied to all
                 - If list of tuples, must be of same length as vert_ind
     """
@@ -178,6 +179,7 @@ def color_vertices(obj, vert_ind, colors):
     scene = bpy.context.scene
     scene.objects.active = obj
     obj.select = True
+    bpy.ops.object.mode_set(mode='OBJECT')
 
     mesh = obj.data
 
@@ -187,6 +189,7 @@ def color_vertices(obj, vert_ind, colors):
         vcol_layer = mesh.vertex_colors.new()
 
     # A vertex and one of its edges combined are called a loop, which has a color
+    # So if a vertex has four outgoing edges, it has four colors for the four loops
     for poly in mesh.polygons:
         for loop_idx in poly.loop_indices:
             loop_vert_idx = mesh.loops[loop_idx].vertex_index
@@ -219,13 +222,17 @@ def color_vertices(obj, vert_ind, colors):
     logging.warning("%s:     ..., so node tree of %s has changed", thisfunc, obj.name)
 
 
-def setup_diffuse_nodetree(obj):
+def setup_diffuse_nodetree(obj, roughness=0):
     """
     Set up a simple diffuse node tree for imported object bundled with texture map
+        Mathematically, it's either Lambertian (no roughness) or Oren-Nayar (with roughness)
 
     Args:
         obj: Object bundled with texture map
             bpy_types.Object
+        roughness: Roughness in Oren-Nayar model
+            Float
+            Optional; defaults to 0, i.e., Lambertian
     """
     thisfunc = thisfile + '->setup_diffuse_nodetree()'
 
@@ -238,8 +245,10 @@ def setup_diffuse_nodetree(obj):
     node_tree.nodes['Image Texture'].image = obj.active_material.active_texture.image
     node_tree.links.new(
         node_tree.nodes['Image Texture'].outputs[0],
-        node_tree.nodes['Diffuse BSDF'].inputs[0]
-    )
+        node_tree.nodes['Diffuse BSDF'].inputs[0])
+
+    # Roughness
+    node_tree.nodes['Diffuse BSDF'].inputs[1].default_value = roughness
 
     logging.info("%s: Diffuse node tree set up for %s", thisfunc, obj.name)
 
