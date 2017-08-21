@@ -349,7 +349,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
                 "'hide' should contain object names (i.e., strings), not object(s) per se"
 
     if save_to is None:
-        outpath = '/tmp_%s/zbuffer' % time()
+        outpath = '/tmp/%s_zbuffer' % time()
     elif save_to.endswith('.exr'):
         outpath = save_to[:-4]
 
@@ -386,7 +386,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
 
     # Render
     scene.cycles.samples = 1
-    scene.render.filepath = '/tmp_%s/rgb.png' % time() # redirect RGB rendering to avoid overwritting
+    scene.render.filepath = '/tmp/%s_rgb.png' % time() # redirect RGB rendering to avoid overwritting
     bpy.ops.render.render(write_still=True)
 
     w = scene.render.resolution_x
@@ -495,3 +495,57 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide
     logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
 
     return visible_vert_ind
+
+
+def get_2d_bounding_box(obj, cam):
+    """
+    Get 2D bounding box of the object in the camera frame
+        This is different from projecting the 3D bounding box to 2D
+
+    Args:
+        obj: Object of interest
+            bpy_types.Object
+        cam: Camera object
+            bpy_types.Object
+
+    Returns:
+        corners: 2D coordinates of bounding box corners
+            Numpy array of shape (4, 2); corners are ordered counterclockwise
+            (0, 0)
+            +------------> (w, 0)
+            |           u
+            |
+            |
+            |
+            v v
+            (0, h)
+    """
+    thisfunc = thisfile + '->get_2d_bounding_box()'
+
+    scene = bpy.context.scene
+    w, h = scene.render.resolution_x, scene.render.resolution_y
+    scale = scene.render.resolution_percentage / 100.
+
+    # Get camera matrix
+    cam_mat, _, _ = get_camera_matrix(cam)
+
+    # Project all vertices to 2D
+    pts_2d = np.array([], dtype=float).reshape((0, 2))
+    for v in obj.data.vertices:
+        uv = np.array(cam_mat * obj.matrix_world * v.co) # project to 2D
+        uv = uv[:-1] / uv[-1]
+        pts_2d = np.vstack((pts_2d, uv))
+
+    # Compute bounding box
+    u_min, v_min = np.min(pts_2d, axis=0)
+    u_max, v_max = np.max(pts_2d, axis=0)
+    corners = np.vstack((
+        np.array([u_min, v_min]),
+        np.array([u_max, v_min]),
+        np.array([u_max, v_max]),
+        np.array([u_min, v_max])))
+
+    logging.info("%s: Got 2D bounding box of '%s' in camera '%s'", thisfunc, obj.name, cam.name)
+    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
+
+    return corners
