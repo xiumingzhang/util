@@ -16,31 +16,35 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def binarize(im):
+def binarize(im, threshold=None):
     """
     Binarizes images
 
     Args:
         im: Image to binarize
             Numpy array of any interger type (uint8, uint16, etc.)
-                - If h-by-w, binarize each pixel at datatype midpoint
                 - If h-by-w-3, convert to grayscale and treat as h-by-w
+        threshold: Threshold for binarization
+            Float
+            Optional; defaults to None (midpoint of the dtype)
 
     Returns:
         im_bin: Binarized image
             h-by-w numpy array of only 0's and 1's
     """
-
-    # Compute threshold from datatype
-    maxval = np.iinfo(im.dtype).max
-
     # RGB to grayscale
-    if len(im.shape) == 3 and im.shape[2] == 3: # h-by-w-by-3
+    if im.ndim == 3 and im.shape[2] == 3: # h-by-w-by-3
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
-    if len(im.shape) == 2: # h-by-w
+    if im.ndim == 2: # h-by-w
+
+        # Compute threshold from data type
+        if threshold is None:
+            maxval = np.iinfo(im.dtype).max
+            threshold = maxval / 2.
+
         im_bin = im
-        logicalmap = im > maxval / 2
+        logicalmap = im > threshold
         im_bin[logicalmap] = 1
         im_bin[np.logical_not(logicalmap)] = 0
     else:
