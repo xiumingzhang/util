@@ -7,6 +7,7 @@ June 2017
 
 from os.path import abspath
 import logging
+from copy import deepcopy
 import numpy as np
 import cv2
 from scipy.interpolate import RectBivariateSpline, interp2d
@@ -32,19 +33,21 @@ def binarize(im, threshold=None):
         im_bin: Binarized image
             h-by-w numpy array of only 0's and 1's
     """
-    # RGB to grayscale
-    if im.ndim == 3 and im.shape[2] == 3: # h-by-w-by-3
-        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    im_copy = deepcopy(im)
 
-    if im.ndim == 2: # h-by-w
+    # RGB to grayscale
+    if im_copy.ndim == 3 and im_copy.shape[2] == 3: # h-by-w-by-3
+        im_copy = cv2.cvtColor(im_copy, cv2.COLOR_BGR2GRAY)
+
+    if im_copy.ndim == 2: # h-by-w
 
         # Compute threshold from data type
         if threshold is None:
-            maxval = np.iinfo(im.dtype).max
+            maxval = np.iinfo(im_copy.dtype).max
             threshold = maxval / 2.
 
-        im_bin = im
-        logicalmap = im > threshold
+        im_bin = im_copy
+        logicalmap = im_copy > threshold
         im_bin[logicalmap] = 1
         im_bin[np.logical_not(logicalmap)] = 0
     else:
@@ -209,9 +212,9 @@ def query_float_locations(im, query_pts, method='bilinear'):
 def compute_gradients(im):
     """
     Compute magnitudes and orientations of image gradients with Scharr operators
-        [ 3 0 -3 ]          [ 3  10  3]
-        [10 0 -10]    and   [ 0   0  0]
-        [ 3 0 -3 ]          [-3 -10 -3]
+        [ 3 0 -3 ]           [ 3  10  3]
+        [10 0 -10]    and    [ 0   0  0]
+        [ 3 0 -3 ]           [-3 -10 -3]
 
     Args:
         im: Single-channel (e.g., grayscale) or multi-channel (e.g., RGB) images
@@ -219,16 +222,16 @@ def compute_gradients(im):
             Gradients are computed independently for each of the c channels
 
     Returns:
-        grad_mag: Magnitude image of channel gradients
+        grad_mag: Magnitude image of channel gradients; same depth as 'im'
             Numpy array of the same size as 'im'
         grad_orient: Orientation image of channel gradients (in radians)
             Numpy array of the same size as 'im'
-                  y ^ pi/2
-                    |
-           pi       |
-            --------+--------> 0
-          -pi       |       x
-                    | -pi/2
+                   y ^ pi/2
+                     |
+            pi       |
+             --------+--------> 0
+            -pi      |       x
+                     | -pi/2
     """
     # Figure out image size and number of channels
     if im.ndim == 3:
@@ -247,14 +250,17 @@ def compute_gradients(im):
 
     for i in range(c):
         z = im[:, :, i]
+        ddepth = -1 # same depth as the source
 
         # Along horizontal direction
         xorder, yorder = 1, 0
-        grad_h = cv2.Sobel(z, cv2.CV_64F, xorder, yorder, ksize=-1) # 3x3 Scharr
+        grad_h = cv2.Sobel(z, ddepth, xorder, yorder, ksize=-1) # 3x3 Scharr
+        grad_h = grad_h.astype(float)
 
         # Along vertical direction
         xorder, yorder = 0, 1
-        grad_v = cv2.Sobel(z, cv2.CV_64F, xorder, yorder, ksize=-1) # 3x3 Scharr
+        grad_v = cv2.Sobel(z, ddepth, xorder, yorder, ksize=-1) # 3x3 Scharr
+        grad_v = grad_v.astype(float)
 
         # Magnitude
         grad_mag[:, :, i] = np.sqrt(np.square(grad_h) + np.square(grad_v))
