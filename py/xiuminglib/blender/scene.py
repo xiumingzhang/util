@@ -196,7 +196,7 @@ def render_to_file(outpath, text=None, cam_names=None, hide=None):
         return result_path
 
 
-def easyset(w=None, h=None, n_samples=None, ao=None):
+def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_depth=None):
     """
     Set some of the scene attributes more easily
 
@@ -212,6 +212,12 @@ def easyset(w=None, h=None, n_samples=None, ao=None):
             Optional; no change if not given
         ao: Ambient occlusion
             Boolean
+            Optional; no change if not given
+        color_mode: Color mode of rendering
+            'BW', 'RGB', or 'RGBA'
+            Optional; no change if not given
+        color_depth: Color depth of rendering
+            '8' or '16'
             Optional; no change if not given
     """
     scene = bpy.context.scene
@@ -232,3 +238,11 @@ def easyset(w=None, h=None, n_samples=None, ao=None):
     # Ambient occlusion
     if ao is not None:
         bpy.context.scene.world.light_settings.use_ambient_occlusion = ao
+
+    # Color mode of rendering
+    if color_mode is not None:
+        scene.render.image_settings.color_mode = color_mode
+
+    # Color depth of rendering
+    if color_depth is not None:
+        scene.render.image_settings.color_depth = color_depth
