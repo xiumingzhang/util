@@ -4,7 +4,7 @@ Utility functions for manipulating objects in Blender
 Xiuming Zhang, MIT CSAIL
 July 2017
 
-Contributor(s): Xingyuan Sun
+Contributor: Xingyuan Sun
 """
 
 import logging

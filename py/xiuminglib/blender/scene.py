@@ -84,7 +84,7 @@ def set_cycles(w=None, h=None, n_samples=None):
     logging.info("%s: Cycles set up as rendering engine", thisfunc)
 
 
-def save_to_file(outpath, delete_overwritten=False):
+def save_blend(outpath, delete_overwritten=False):
     """
     Save current scene to .blend file
 
@@ -95,7 +95,7 @@ def save_to_file(outpath, delete_overwritten=False):
             Boolean
             Optional; defaults to False
     """
-    thisfunc = thisfile + '->save_to_file()'
+    thisfunc = thisfile + '->save_blend()'
 
     outdir = dirname(outpath)
     if not exists(outdir):
@@ -109,7 +109,7 @@ def save_to_file(outpath, delete_overwritten=False):
     logging.info("%s: Saved to %s", thisfunc, outpath)
 
 
-def render_to_file(outpath, text=None, cam_names=None, hide=None):
+def render(outpath, text=None, cam_names=None, hide=None):
     """
     Render current scene to images with cameras in scene
 
@@ -142,7 +142,7 @@ def render_to_file(outpath, text=None, cam_names=None, hide=None):
         result_path: Path(s) to the rendering ('outpath' prefixed by camera name)
             String or list thereof
     """
-    thisfunc = thisfile + '->render_to_file()'
+    thisfunc = thisfile + '->render()'
 
     if isinstance(cam_names, str):
         cam_names = [cam_names]
@@ -194,6 +194,89 @@ def render_to_file(outpath, text=None, cam_names=None, hide=None):
         return result_path[0]
     else:
         return result_path
+
+
+def render_mask(outpath, cam, obj_names=None):
+    """
+    Render binary masks of objects from the specified camera
+
+    Args:
+        outpath: Path to save render to, e.g., '~/foo.png'
+            String
+        cam: Camera through which scene is rendered
+            bpy_types.Object
+        obj_names: Name(s) of object(s) of interest
+            String or list thereof
+            Optional; defaults to None (all objects)
+
+    Returns:
+        result_path: Path(s) to the rendering ('outpath' prefixed by object names)
+            String
+    """
+    thisfunc = thisfile + '->render_mask()'
+
+    if isinstance(obj_names, str):
+        obj_names = [obj_names]
+    elif obj_names is None:
+        obj_names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+
+    scene = bpy.context.scene
+    assert (scene.render.engine == 'CYCLES'), "Only works with Cycles"
+
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir)
+
+    # Set active camera
+    scene.camera = cam
+
+    # Prepend names of objects of interest
+    ext = '.' + outpath.split('.')[-1]
+    outpath_final = outpath.replace(ext, '_' + '-'.join(obj_names) + ext)
+    scene.render.filepath = outpath_final
+
+    # Set background pure black (by using no background node)
+    world = bpy.data.worlds['World']
+    world.use_nodes = True
+    try:
+        world.node_tree.nodes.remove(world.node_tree.nodes['Background'])
+    except KeyError:
+        pass
+
+    # Assign pure white emission nodes to objects of interests and hide other objects
+    for obj in bpy.data.objects:
+        if obj.name in obj_names:
+            obj.hide_render = False
+
+            # Handle no material
+            if obj.active_material is None:
+                obj.data.materials[0] = bpy.data.materials.new()
+
+            # Get material node tree
+            obj.active_material.use_nodes = True
+            node_tree = obj.active_material.node_tree
+            nodes = node_tree.nodes
+
+            # Remove all current nodes
+            for n in nodes:
+                nodes.remove(n)
+
+            # Set up pure white emission node tree
+            nodes.new('ShaderNodeEmission')
+            nodes['Emission'].inputs[0].default_value = (1, 1, 1, 1) # pure white
+            nodes.new('ShaderNodeOutputMaterial')
+            node_tree.links.new(nodes['Emission'].outputs[0], nodes['Material Output'].inputs[0])
+        else:
+            # Including lamps, so they are effectively turned off
+            obj.hide_render = True
+
+    # Render
+    bpy.ops.render.render(write_still=True)
+
+    logging.info("%s: Binary mask(s) of %s rendered through %s", thisfunc, obj_names, cam.name)
+    logging.warning("%s:     ..., and node trees of these objects and object renderability have changed", thisfunc)
+
+    return outpath_final
 
 
 def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_depth=None):

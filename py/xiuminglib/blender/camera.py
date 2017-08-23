@@ -346,7 +346,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
             hide = [hide]
         for element in hide:
             assert isinstance(element, str), \
-                "'hide' should contain object names (i.e., strings), not object(s) per se"
+                "'hide' should contain object names (i.e., strings), not objects themselves"
 
     if save_to is None:
         outpath = '/tmp/%s_zbuffer' % time()
