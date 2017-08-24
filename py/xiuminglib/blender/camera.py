@@ -207,12 +207,39 @@ def intrinsics_compatible_with_scene(cam, eps=1e-6):
         return True
     else:
         logging.error((
-            "%s: Render resolutions (w_pix = %d; h_pix = %d), sensor size (w_mm = %f; h_mm = %f), and "
-            "pixel aspect ratio (PAR = %f) don't make sense together. This could cause "
-            "unexpected behaviors later. Consider using w_mm * h_pix / w_pix for sensor height"
-        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
+            "%s: Render resolutions (w_pix = %d; h_pix = %d), sensor size (w_mm = %f; h_mm = %f), "
+            "and pixel aspect ratio (r = %f) don't make sense together. This could cause "
+            "unexpected behaviors later. Consider running correct_sensor_height()"
+        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, scale, pixel_aspect_ratio)
 
         return False
+
+
+def correct_sensor_height(cam):
+    """
+    Make render resolutions (w_pix, h_pix), sensor size (w_mm, h_mm), and pixel aspect ratio (r)
+        compatible by changing sensor height to w_mm * h_pix / w_pix / r
+
+    Args:
+        cam: Camera object
+            bpy_types.Object
+    """
+    thisfunc = thisfile + '->correct_sensor_height()'
+
+    # Camera
+    sensor_width_mm = cam.data.sensor_width
+
+    # Scene
+    scene = bpy.context.scene
+    w = scene.render.resolution_x
+    h = scene.render.resolution_y
+    pixel_aspect_ratio = scene.render.pixel_aspect_x / scene.render.pixel_aspect_y
+
+    # Change sensor height
+    sensor_height_mm = sensor_width_mm * h / w / pixel_aspect_ratio
+    cam.data.sensor_height = sensor_height_mm
+
+    logging.info("%s: Sensor height changed to %f", thisfunc, sensor_height_mm)
 
 
 def get_camera_matrix(cam, keep_disparity=False):
