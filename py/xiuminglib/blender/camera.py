@@ -475,7 +475,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
     return zbuffer
 
 
-def backproj_uv_to_3d(uvs, cam, obj_names=None):
+def backproj_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
     """
     Backproject 2D coordinates to 3D
         Since a 2D point could be projected from any point on a 3D line, this function will return
@@ -496,6 +496,9 @@ def backproj_uv_to_3d(uvs, cam, obj_names=None):
         obj_names: Names of objects of interest
             String or list thereof
             Optional; defaults to None (all objects)
+        world_coords: Whether to return world or local coordinates
+            Boolean
+            Optional; defaults to False
 
     Returns:
         xyzs: 3D local coordinates
@@ -541,13 +544,14 @@ def backproj_uv_to_3d(uvs, cam, obj_names=None):
         ray_start_world = cam.location # origin in camera coordinates
         ray_dir_world = 1e10 * Vector(xyzw[:3]) - ray_start_world # boost it for robust matrix multiplications
 
-        first_intersect_loc = None
+        first_intersect = None
         first_intersect_objname = None
         dist_min = np.inf
 
         # Test intersections with each object of interest
         for obj_name, tree in trees.items():
-            world2obj = objs[obj_name].matrix_world.inverted()
+            obj2world = objs[obj_name].matrix_world
+            world2obj = obj2world.inverted()
 
             # Ray start and direction in local coordinates
             ray_start = world2obj * ray_start_world
@@ -558,10 +562,13 @@ def backproj_uv_to_3d(uvs, cam, obj_names=None):
 
             # See if this intersection is closer to camera center
             if (dist is not None) and (dist < dist_min):
-                first_intersect_loc = loc
+                if world_coords:
+                    first_intersect = obj2world * loc
+                else:
+                    first_intersect = loc
                 first_intersect_objname = obj_name
 
-        xyzs[i] = first_intersect_loc
+        xyzs[i] = first_intersect
         intersect_objnames[i] = first_intersect_objname
 
     logging.info("%s: Backprojection done with camera '%s'", thisfunc, cam.name)
