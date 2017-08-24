@@ -56,10 +56,10 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         model_path: Path to object to add
             String
         rot_mat: 3D rotation matrix PRECEDING translation
-            Tuple, list or numpy array; must be effectively 3-by-3
+            3-by-3 array_like
             Optional; defaults to identity matrix
         trans_vec: 3D translation vector FOLLOWING rotation
-            Tuple, list or numpy array; must be of length 3
+            3-array_like
             Optional; defaults to zero vector
         scale: Scale of the object
             Float

@@ -232,7 +232,7 @@ def render_mask(outpath, cam, obj_names=None):
 
     # Prepend names of objects of interest
     ext = '.' + outpath.split('.')[-1]
-    outpath_final = outpath.replace(ext, '_' + '-'.join(obj_names) + ext)
+    outpath_final = outpath.replace(ext, '_mask-of-' + '-'.join(obj_names) + ext)
     scene.render.filepath = outpath_final
 
     # Set background pure black (by using no background node)

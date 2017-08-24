@@ -12,8 +12,10 @@ from time import time
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
+from mathutils.bvhtree import BVHTree
 import numpy as np
 import cv2
+from xiuminglib.blender import object as xb_object
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
@@ -166,7 +168,7 @@ def point_camera_to(cam, xyz_target):
     return cam
 
 
-def intrinsics_compatible_with_scene(cam):
+def intrinsics_compatible_with_scene(cam, eps=1e-6):
     """
     Check if camera intrinsic parameters (sensor size and pixel aspect ratio)
         are comptible with the current scene (render resolutions and their scale)
@@ -174,6 +176,9 @@ def intrinsics_compatible_with_scene(cam):
     Args:
         cam: Camera object
             bpy_types.Object
+        eps: Epsilon for numerical comparison; considered equal if abs(a - b) / b < eps
+            Float
+            Optional; defaults to 1e-6
 
     Returns:
         comptible: Result
@@ -196,39 +201,40 @@ def intrinsics_compatible_with_scene(cam):
     mm_per_pix_horizontal = sensor_width_mm / (w * scale)
     mm_per_pix_vertical = sensor_height_mm / (h * scale)
 
-    if mm_per_pix_horizontal / mm_per_pix_vertical == pixel_aspect_ratio:
-
+    if abs(mm_per_pix_horizontal / mm_per_pix_vertical - pixel_aspect_ratio) / pixel_aspect_ratio < eps:
         logging.info("%s: OK", thisfunc)
 
         return True
-
     else:
-        compatible_sensor_height_mm = sensor_width_mm / w * h / pixel_aspect_ratio
-
         logging.error((
-            "%s: Render resolutions (w = %d; h = %d), sensor size (w = %d; h = %d), and "
-            "pixel aspect ratio (w / h = %f) don't make sense together. This could cause "
-            "unexpected behaviors later. Consider using %f for sensor height"
-        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio, compatible_sensor_height_mm)
+            "%s: Render resolutions (w_pix = %d; h_pix = %d), sensor size (w_mm = %f; h_mm = %f), and "
+            "pixel aspect ratio (PAR = %f) don't make sense together. This could cause "
+            "unexpected behaviors later. Consider using w_mm * h_pix / w_pix for sensor height"
+        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
 
         return False
 
 
-def get_camera_matrix(cam):
+def get_camera_matrix(cam, keep_disparity=False):
     """
-    Get camera matrix from Blender camera
+    Get camera matrix, intrinsics and extrinsics from Blender camera
+        You can ask for a 4-by-4 projection that projects (x, y, z, 1) to
+            (u, v, 1, d), where d is the disparity, reciprocal of depth
 
     Args:
         cam: Camera object
             bpy_types.Object
+        keep_disparity: Whether matrices keep disparity or not
+            Boolean
+            Optional; defaults to False
 
     Returns:
         cam_mat: Camera matrix, product of intrinsics and extrinsics
-            3-by-4 Matrix
+            4-by-4 Matrix if 'keep_disparity'; else, 3-by-4
         int_mat: Camera intrinsics
-            3-by-4 Matrix
+            4-by-4 Matrix if 'keep_disparity'; else, 3-by-3
         ext_mat: Camera extrinsics
-            4-by-4 Matrix
+            4-by-4 Matrix if 'keep_disparity'; else, 3-by-4
     """
     thisfunc = thisfile + '->get_camera_matrix()'
 
@@ -265,10 +271,20 @@ def get_camera_matrix(cam):
         s_v = h * scale * pixel_aspect_ratio / sensor_height_mm
 
     skew = 0 # only use rectangular pixels
-    int_mat = Matrix((
-        (s_u * f_mm, skew, w * scale / 2),
-        (0, s_v * f_mm, h * scale / 2),
-        (0, 0, 1)))
+
+    if keep_disparity:
+        # 4-by-4
+        int_mat = Matrix((
+            (s_u * f_mm, skew, w * scale / 2, 0),
+            (0, s_v * f_mm, h * scale / 2, 0),
+            (0, 0, 1, 0),
+            (0, 0, 0, 1)))
+    else:
+        # 3-by-3
+        int_mat = Matrix((
+            (s_u * f_mm, skew, w * scale / 2),
+            (0, s_v * f_mm, h * scale / 2),
+            (0, 0, 1)))
 
     # Extrinsics
 
@@ -300,10 +316,19 @@ def get_camera_matrix(cam):
     rotmat_world2cv = rotmat_cam2cv * rotmat_world2cam
     t_world2cv = rotmat_cam2cv * t_world2cam
 
-    ext_mat = Matrix((
-        rotmat_world2cv[0][:] + (t_world2cv[0],),
-        rotmat_world2cv[1][:] + (t_world2cv[1],),
-        rotmat_world2cv[2][:] + (t_world2cv[2],)))
+    if keep_disparity:
+        # 4-by-4
+        ext_mat = Matrix((
+            rotmat_world2cv[0][:] + (t_world2cv[0],),
+            rotmat_world2cv[1][:] + (t_world2cv[1],),
+            rotmat_world2cv[2][:] + (t_world2cv[2],),
+            (0, 0, 0, 1)))
+    else:
+        # 3-by-4
+        ext_mat = Matrix((
+            rotmat_world2cv[0][:] + (t_world2cv[0],),
+            rotmat_world2cv[1][:] + (t_world2cv[1],),
+            rotmat_world2cv[2][:] + (t_world2cv[2],)))
 
     # Camera matrix
     cam_mat = int_mat * ext_mat
@@ -319,9 +344,9 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
     Get z-buffer of Blender camera
         Values are z components in camera-centered coordinate system:
             - x is horizontal
-            - y is down (to align to the actual pixel coordinates)
+            - y is down (to align with the actual pixel coordinates)
             - right-handed: positive z is look-at direction and means "in front of camera"
-        Origin is camera center, not image plane
+        Origin is camera center, not image plane (focal length away from origin)
 
     Args:
         cam: Camera object
@@ -423,12 +448,112 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
     return zbuffer
 
 
+def backproj_uv_to_3d(uvs, cam, obj_names=None):
+    """
+    Backproject 2D coordinates to 3D
+        Since a 2D point could be projected from any point on a 3D line, this function will return
+            the 3D point at which this line (ray) intersects with an object for the first time
+
+    Args:
+        uvs: UV coordinates
+            Array_like of length 2 or shape (n, 2)
+            (0, 0)
+            +------------> (w, 0)
+            |           u
+            |
+            |
+            |
+            v v (0, h)
+        cam: Camera object
+            bpy_types.Object
+        obj_names: Names of objects of interest
+            String or list thereof
+            Optional; defaults to None (all objects)
+
+    Returns:
+        xyzs: 3D local coordinates
+            Vector or None (if no intersections) or list thereof
+        intersect_objnames: Name(s) of object(s) responsible for intersections
+            String or None (if no intersections) or list thereof
+    """
+    thisfunc = thisfile + '->backproj_uv_to_3d()'
+
+    # Standardize inputs
+    uvs = np.array(uvs).reshape(-1, 2)
+    objs = bpy.data.objects
+    if isinstance(obj_names, str):
+        obj_names = [obj_names]
+    elif obj_names is None:
+        obj_names = [o.name for o in objs if o.type == 'MESH']
+
+    scene = bpy.context.scene
+    w, h = scene.render.resolution_x, scene.render.resolution_y
+    scale = scene.render.resolution_percentage / 100.
+
+    # Get 4-by-4 invertible camera matrix
+    cam_mat, _, _ = get_camera_matrix(cam, keep_disparity=True)
+
+    # Construct BVH trees for objects of interest
+    trees = {}
+    for obj_name in obj_names:
+        obj = objs[obj_name]
+        bm = xb_object.get_bmesh(obj)
+        trees[obj_name] = BVHTree.FromBMesh(bm)
+
+    xyzs = [None] * uvs.shape[0]
+    intersect_objnames = [None] * uvs.shape[0]
+
+    for i in range(uvs.shape[0]):
+
+        # Compute the infinitely far point on the line passing camera center and projecting to uv
+        uv = uvs[i, :]
+        uv1d = np.append(uv, [1, 0])
+        xyzw = cam_mat.inverted() * Vector(uv1d) # w = 0; world
+
+        # Ray start and direction in world coordinates
+        ray_start_world = cam.location # origin in camera coordinates
+        ray_dir_world = 1e10 * Vector(xyzw[:3]) - ray_start_world # boost it for robust matrix multiplications
+
+        first_intersect_loc = None
+        first_intersect_objname = None
+        dist_min = np.inf
+
+        # Test intersections with each object of interest
+        for obj_name, tree in trees.items():
+            world2obj = objs[obj_name].matrix_world.inverted()
+
+            # Ray start and direction in local coordinates
+            ray_start = world2obj * ray_start_world
+            ray_dir = world2obj * ray_dir_world
+
+            # Ray tracing
+            loc, _, _, dist = tree.ray_cast(ray_start, ray_dir)
+
+            # See if this intersection is closer to camera center
+            if (dist is not None) and (dist < dist_min):
+                first_intersect_loc = loc
+                first_intersect_objname = obj_name
+
+        xyzs[i] = first_intersect_loc
+        intersect_objnames[i] = first_intersect_objname
+
+    logging.info("%s: Backprojection done with camera '%s'", thisfunc, cam.name)
+    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
+
+    if uvs.shape[0] == 1:
+        return xyzs[0], intersect_objnames[0]
+    else:
+        return xyzs, intersect_objnames
+
+
 def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide=None):
     """
     Get vertices that are visible (projected within frame AND unoccluded) from Blender camera
-        Inaccurate when object's own depth variation is small compared with its overall depth
-        Since z-buffer may cover other objects, this function takes occlusion by other objects into account
-        You can opt to ignore z-buffer such that occluded vertices are also considered visible
+        Rasterized z-buffer (instead of ray tracing) used for speed
+        Depth considered the same within a percentage window, so inaccurate when object's
+            own depth variation is small compared with its overall depth
+        Since z-buffer may cover other objects, this function takes occlusion by other objects into account,
+            but you can opt to ignore z-buffer such that occluded vertices are also considered visible
 
     Args:
         cam: Camera object
@@ -517,8 +642,7 @@ def get_2d_bounding_box(obj, cam):
             |
             |
             |
-            v v
-            (0, h)
+            v v (0, h)
     """
     thisfunc = thisfile + '->get_2d_bounding_box()'
 
