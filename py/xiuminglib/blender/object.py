@@ -13,7 +13,7 @@ from os.path import abspath
 import numpy as np
 import bpy
 import bmesh
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
@@ -116,9 +116,9 @@ def add_cylinder_between(pt1, pt2, r, name=None):
 
     Args:
         pt1: Global coordinates of point 1
-            Array-like containing three floats
+            Array_like containing three floats
         pt2: Global coordinates of point 2
-            Array-like containing three floats
+            Array_like containing three floats
         r: Cylinder radius
             Radius
         name: Cylinder name
@@ -126,7 +126,7 @@ def add_cylinder_between(pt1, pt2, r, name=None):
             Optional; defaults to Blender defaults
 
     Returns:
-        cylinder_obj: Handle of imported cylinder
+        cylinder_obj: Handle of added cylinder
             bpy_types.Object
     """
     pt1 = np.array(pt1)
@@ -149,6 +149,49 @@ def add_cylinder_between(pt1, pt2, r, name=None):
     theta = np.arccos(d[2] / dist)
     cylinder_obj.rotation_euler[1] = theta
     cylinder_obj.rotation_euler[2] = phi
+
+
+def add_plane(center_loc, point_to, size, name=None):
+    """
+    Add a plane specified by its center location, dimensions, and where its +z points to
+
+    Args:
+        center_loc: Plane center location in world coordinates
+            Array_like containing three floats
+        point_to: Direction to which plane's +z points to in world coordinates
+            Array_like containing three floats
+        size: Sizes in x and y directions (0 in z)
+            Array_like containing two floats
+        name: Plane name
+            String
+            Optional; defaults to Blender defaults
+
+    Returns:
+        plane_obj: Handle of added plane
+            bpy_types.Object
+    """
+    center_loc = np.array(center_loc)
+    point_to = np.array(point_to)
+    size = np.append(np.array(size), 0)
+
+    bpy.ops.mesh.primitive_plane_add(location=center_loc)
+
+    plane_obj = bpy.context.object
+
+    if name is not None:
+        plane_obj.name = name
+
+    plane_obj.dimensions = size
+
+    # Point it to target
+    direction = Vector(point_to) - plane_obj.location
+    # Find quaternion that rotates plane's 'Z' so that it aligns with 'direction'
+    # This rotation is not unique because the rotated plane can still rotate about direction vector
+    # Specifying 'Y' gives the rotation quaternion with plane's 'Y' pointing up
+    rot_quat = direction.to_track_quat('Z', 'Y')
+    plane_obj.rotation_euler = rot_quat.to_euler()
+
+    return plane_obj
 
 
 def color_vertices(obj, vert_ind, colors):

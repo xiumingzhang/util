@@ -210,7 +210,7 @@ def intrinsics_compatible_with_scene(cam, eps=1e-6):
             "%s: Render resolutions (w_pix = %d; h_pix = %d), sensor size (w_mm = %f; h_mm = %f), "
             "and pixel aspect ratio (r = %f) don't make sense together. This could cause "
             "unexpected behaviors later. Consider running correct_sensor_height()"
-        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, scale, pixel_aspect_ratio)
+        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
 
         return False
 

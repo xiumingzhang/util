@@ -112,7 +112,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
             h-by-w or h-by-w-by-c numpy array
             Each of c channels is interpolated independently
         query_pts: Query locations
-            Array-like of shape (n, 2) or (2,)
+            Array_like of shape (n, 2) or (2,)
             +-----------> dim1
             |
             |

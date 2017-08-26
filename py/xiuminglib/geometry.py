@@ -28,7 +28,7 @@ def cartesian2spherical(pts_cartesian):
 
     Args:
         pts_cartesian: Cartesian x, y and z
-            Array-like of shape '(3,)' or '(n, 3)'
+            Array_like of shape '(3,)' or '(n, 3)'
 
     Returns:
         pts_spherical: Spherical r, lat and lng (in radians)
@@ -111,11 +111,11 @@ def moeller_trumbore(ray_orig, ray_dir, tri_v0, tri_v1, tri_v2):
 
     Args:
         ray_orig: Ray origin O
-            Array-like of three floats
+            Array_like of three floats
         ray_dir: Ray direction D (not necessarily normalized)
-            Array-like of three floats
+            Array_like of three floats
         tri_v0, tri_v1, tri_v2: Vertices of the triangle V0, V1, V2
-            Array-likes of three floats
+            Array_likes of three floats
 
     Returns:
         u, v: Barycentric coordinates. Intersection is in triangle (including on an edge
