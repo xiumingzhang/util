@@ -475,7 +475,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
     return zbuffer
 
 
-def backproj_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
+def backproject_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
     """
     Backproject 2D coordinates to 3D
         Since a 2D point could be projected from any point on a 3D line, this function will return
@@ -506,7 +506,7 @@ def backproj_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
         intersect_objnames: Name(s) of object(s) responsible for intersections
             String or None (if no intersections) or list thereof
     """
-    thisfunc = thisfile + '->backproj_uv_to_3d()'
+    thisfunc = thisfile + '->backproject_uv_to_3d()'
 
     # Standardize inputs
     uvs = np.array(uvs).reshape(-1, 2)

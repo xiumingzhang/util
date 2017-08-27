@@ -304,6 +304,7 @@ def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_dept
             Optional; no change if not given
     """
     scene = bpy.context.scene
+    engine = scene.render.engine
 
     if w is not None:
         scene.render.resolution_x = w
@@ -313,10 +314,10 @@ def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_dept
 
     # Number of samples
     if n_samples is not None:
-        if scene.render.engine == 'CYCLES':
+        if engine == 'CYCLES':
             scene.cycles.samples = n_samples
         else:
-            raise NotImplementedError("Rendering engines other than Cycles")
+            raise NotImplementedError(engine)
 
     # Ambient occlusion
     if ao is not None:

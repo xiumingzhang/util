@@ -77,10 +77,11 @@ def add_light_sun(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=1, siz
     sun.data.shadow_soft_size = size # larger means softer shadows
 
     # Strength
-    if bpy.data.scenes['Scene'].render.engine == 'CYCLES':
+    engine = bpy.data.scenes['Scene'].render.engine
+    if engine == 'CYCLES':
         sun.data.node_tree.nodes['Emission'].inputs[1].default_value = energy
     else:
-        raise NotImplementedError("Sun lamp strength for Blender Internal")
+        raise NotImplementedError(engine)
 
     logging.info("%s: Sun lamp (parallel light) added", thisfunc)
 
@@ -126,10 +127,11 @@ def add_light_area(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=100, 
     area.data.size = size # larger means softer shadows
 
     # Strength
-    if bpy.data.scenes['Scene'].render.engine == 'CYCLES':
+    engine = bpy.data.scenes['Scene'].render.engine
+    if engine == 'CYCLES':
         area.data.node_tree.nodes['Emission'].inputs[1].default_value = energy
     else:
-        raise NotImplementedError("Area light strength for Blender Internal")
+        raise NotImplementedError(engine)
 
     logging.info("%s: Area light added", thisfunc)
 
@@ -166,10 +168,11 @@ def add_light_point(xyz=(0, 0, 0), name=None, energy=100):
     point.data.shadow_soft_size = 0 # hard shadows
 
     # Strength
-    if bpy.data.scenes['Scene'].render.engine == 'CYCLES':
+    engine = bpy.data.scenes['Scene'].render.engine
+    if engine == 'CYCLES':
         point.data.node_tree.nodes['Emission'].inputs[1].default_value = energy
     else:
-        raise NotImplementedError("Point light strength for Blender Internal")
+        raise NotImplementedError(engine)
 
     logging.info("%s: Omnidirectional point light added", thisfunc)
 
