@@ -168,8 +168,14 @@ def render(outpath, text=None, cam_names=None, hide=None):
 
     result_path = []
 
+    # Save original hide_render attributes for later restoration
+    renderability = {}
+    objects = bpy.data.objects
+    for obj in objects:
+        renderability[obj.name] = obj.hide_render
+
     # Render with all cameras
-    for cam in bpy.data.objects:
+    for cam in objects:
         if cam.type == 'CAMERA':
             if cam_names is None or cam.name in cam_names:
 
@@ -182,7 +188,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
                 result_path.append(outpath_final)
 
                 # Optionally set object visibility in rendering
-                for obj in bpy.data.objects:
+                for obj in objects:
                     if obj.type == 'MESH':
                         if hide is not None:
                             ignore_list = hide.get(cam.name, []) # if no such key, returns empty list
@@ -204,6 +210,10 @@ def render(outpath, text=None, cam_names=None, hide=None):
                     cv2.imwrite(outpath_final, im)
 
                 logging.info("%s: Rendered with camera '%s'", thisfunc, cam.name)
+
+    # Restore hide_render attributes
+    for obj_name, hide_render_value in renderability.items():
+        objects[obj_name].hide_render = hide_render_value
 
     if len(result_path) == 1:
         return result_path[0]
