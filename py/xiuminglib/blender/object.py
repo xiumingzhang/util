@@ -151,17 +151,21 @@ def add_cylinder_between(pt1, pt2, r, name=None):
     cylinder_obj.rotation_euler[2] = phi
 
 
-def add_plane(center_loc, point_to, size, name=None):
+def add_rect_plane(center_loc=(0, 0, 0), point_to=(0, 0, 1), size=(2, 2), name=None):
     """
-    Add a plane specified by its center location, dimensions, and where its +z points to
+    Add a rectangular plane specified by its center location, dimensions,
+        and where its +z points to
 
     Args:
         center_loc: Plane center location in world coordinates
             Array_like containing three floats
+            Optional; defaults to world origin
         point_to: Direction to which plane's +z points to in world coordinates
             Array_like containing three floats
+            Optional; defaults to world +z
         size: Sizes in x and y directions (0 in z)
             Array_like containing two floats
+            Optional; defaults to a square with side length 2
         name: Plane name
             String
             Optional; defaults to Blender defaults
