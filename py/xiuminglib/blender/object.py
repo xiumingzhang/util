@@ -45,6 +45,9 @@ def remove_object(name_pattern):
             obj.select = False
     bpy.ops.object.delete()
 
+    # Scene update necessary, as matrix_world is updated lazily
+    bpy.context.scene.update()
+
     logging.info("%s: Removed from scene: %s", thisfunc, removed)
 
 
@@ -101,6 +104,9 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
 
         obj_list.append(obj)
 
+    # Scene update necessary, as matrix_world is updated lazily
+    bpy.context.scene.update()
+
     logging.info("%s: Imported: %s", thisfunc, model_path)
 
     if len(obj_list) == 1:
@@ -150,6 +156,11 @@ def add_cylinder_between(pt1, pt2, r, name=None):
     cylinder_obj.rotation_euler[1] = theta
     cylinder_obj.rotation_euler[2] = phi
 
+    # Scene update necessary, as matrix_world is updated lazily
+    bpy.context.scene.update()
+
+    return cylinder_obj
+
 
 def add_rect_plane(center_loc=(0, 0, 0), point_to=(0, 0, 1), size=(2, 2), name=None):
     """
@@ -194,6 +205,9 @@ def add_rect_plane(center_loc=(0, 0, 0), point_to=(0, 0, 1), size=(2, 2), name=N
     # Specifying 'Y' gives the rotation quaternion with plane's 'Y' pointing up
     rot_quat = direction.to_track_quat('Z', 'Y')
     plane_obj.rotation_euler = rot_quat.to_euler()
+
+    # Scene update necessary, as matrix_world is updated lazily
+    bpy.context.scene.update()
 
     return plane_obj
 
@@ -265,6 +279,9 @@ def color_vertices(obj, vert_ind, colors):
     node_tree.links.new(nodes['Attribute'].outputs[0], nodes['Diffuse BSDF'].inputs[0])
     node_tree.links.new(nodes['Diffuse BSDF'].outputs[0], nodes['Material Output'].inputs[0])
 
+    # Scene update necessary, as matrix_world is updated lazily
+    scene.update()
+
     logging.info("%s: Vertex color(s) added to %s", thisfunc, obj.name)
     logging.warning("%s:     ..., so node tree of %s has changed", thisfunc, obj.name)
 
@@ -283,7 +300,8 @@ def setup_diffuse_nodetree(obj, roughness=0):
     """
     thisfunc = thisfile + '->setup_diffuse_nodetree()'
 
-    if bpy.context.scene.render.engine != 'CYCLES':
+    scene = bpy.context.scene
+    if scene.render.engine != 'CYCLES':
         raise NotImplementedError("Only Cycles is supported for now")
 
     obj.active_material.use_nodes = True
@@ -296,6 +314,9 @@ def setup_diffuse_nodetree(obj, roughness=0):
 
     # Roughness
     node_tree.nodes['Diffuse BSDF'].inputs[1].default_value = roughness
+
+    # Scene update necessary, as matrix_world is updated lazily
+    scene.update()
 
     logging.info("%s: Diffuse node tree set up for %s", thisfunc, obj.name)
 
@@ -315,6 +336,9 @@ def get_bmesh(obj):
     bm = bmesh.new()
     bm.from_mesh(obj.data)
 
+    # Scene update necessary, as matrix_world is updated lazily
+    bpy.context.scene.update()
+
     return bm
 
 
@@ -331,13 +355,15 @@ def subdivide_mesh(obj, n_subdiv=2):
     """
     thisfunc = thisfile + '->subdivide_mesh()'
 
+    scene = bpy.context.scene
+
     # All objects need to be in 'OBJECT' mode to apply modifiers -- maybe a Blender bug?
     for o in bpy.data.objects:
-        bpy.context.scene.objects.active = o
+        scene.objects.active = o
         bpy.ops.object.mode_set(mode='OBJECT')
         o.select = False
     obj.select = True
-    bpy.context.scene.objects.active = obj
+    scene.objects.active = obj
 
     bpy.ops.object.modifier_add(type='SUBSURF')
     obj.modifiers['Subsurf'].subdivision_type = 'CATMULL_CLARK'
@@ -346,6 +372,9 @@ def subdivide_mesh(obj, n_subdiv=2):
 
     # Apply modifier
     bpy.ops.object.modifier_apply(modifier='Subsurf', apply_as='DATA')
+
+    # Scene update necessary, as matrix_world is updated lazily
+    scene.update()
 
     logging.info("%s: Subdivided mesh of %s", thisfunc, obj.name)
 
@@ -405,5 +434,8 @@ def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
 
     # Update viewport
     scene.objects.active = scene.objects.active
+
+    # Scene update necessary, as matrix_world is updated lazily
+    scene.update()
 
     logging.info("%s: Selected %s elements of %s", thisfunc, select_type, obj.name)
