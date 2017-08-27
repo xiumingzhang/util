@@ -163,7 +163,7 @@ def point_camera_to(cam, xyz_target):
     rot_quat = direction.to_track_quat('-Z', 'Y')
     cam.rotation_euler = rot_quat.to_euler()
 
-    logging.info("%s: Camera pointed to %s", thisfunc, xyz_target)
+    logging.info("%s: Camera %s pointed to %s", thisfunc, cam.name, xyz_target)
 
     return cam
 

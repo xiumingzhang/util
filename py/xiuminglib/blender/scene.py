@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def set_cycles(w=None, h=None, n_samples=None):
+def set_cycles(w=None, h=None, n_samples=None, transp_bg=None, color_mode=None, color_depth=None):
     """
     Set up Cycles as rendering engine
 
@@ -30,6 +30,15 @@ def set_cycles(w=None, h=None, n_samples=None):
         n_samples: Number of samples
             Integer
             Optional; no change if not given
+        transp_bg: Whether world background is transparent
+            Boolean
+            Optional; no change if not given
+        color_mode: Color mode
+            'BW', 'RGB' or 'RGBA'
+            Optional; no change if not given
+        color_depth: Color depth
+            '8' or '16'
+            Optional; defaults to 'RGB'
     """
     thisfunc = thisfile + '->set_cycles()'
 
@@ -57,12 +66,16 @@ def set_cycles(w=None, h=None, n_samples=None):
     cycles.blur_glossy = 5
     cycles.sample_clamp_indirect = 5
 
-    # Ensure no background node
+    # Ensure there's no background light emission
     world.use_nodes = True
     try:
         world.node_tree.nodes.remove(world.node_tree.nodes['Background'])
     except KeyError:
         pass
+
+    # If world background is transparent with premultiplied alpha
+    if transp_bg is not None:
+        cycles.film_transparent = transp_bg
 
     # # Use GPU
     # bpy.context.user_preferences.system.compute_device_type = 'CUDA'
@@ -78,8 +91,10 @@ def set_cycles(w=None, h=None, n_samples=None):
     scene.render.resolution_percentage = 100
     scene.render.use_file_extension = True
     scene.render.image_settings.file_format = 'PNG'
-    scene.render.image_settings.color_mode = 'RGB'
-    scene.render.image_settings.color_depth = '8'
+    if color_mode is not None:
+        scene.render.image_settings.color_mode = color_mode
+    if color_depth is not None:
+        scene.render.image_settings.color_depth = color_depth
 
     logging.info("%s: Cycles set up as rendering engine", thisfunc)
 

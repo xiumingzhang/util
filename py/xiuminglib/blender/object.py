@@ -290,6 +290,34 @@ def create_object_from_mesh(mesh_data, obj_name, location=(0, 0, 0), rotation_eu
     return obj
 
 
+def _clear_nodetree_for_active_material(obj):
+    """
+    Internal helper function clears the node tree of active material
+        so that desired node tree can be cleanly set up.
+        If no active material, one will be created
+    """
+    # Create material if none
+    if obj.active_material is None:
+        mat = bpy.data.materials.new(name='new-mat-for-%s' % obj.name)
+        if obj.data.materials:
+            # Assign to first material slot
+            obj.data.materials[0] = mat
+        else:
+            # No slots
+            obj.data.materials.append(mat)
+
+    active_mat = obj.active_material
+    active_mat.use_nodes = True
+    node_tree = active_mat.node_tree
+    nodes = node_tree.nodes
+
+    # Remove all nodes
+    for node in nodes:
+        nodes.remove(node)
+
+    return node_tree, nodes
+
+
 def color_vertices(obj, vert_ind, colors):
     """
     Color each vertex of interest with the given color; i.e., same color for all its loops
@@ -340,16 +368,8 @@ def color_vertices(obj, vert_ind, colors):
                 # Not found
                 pass
 
-    # Set up Cycles node tree
-    obj.active_material.use_nodes = True
-    node_tree = obj.active_material.node_tree
-    nodes = node_tree.nodes
-
-    # Remove all nodes
-    for node in nodes:
-        nodes.remove(node)
-
     # Set up nodes for vertex colors
+    node_tree, nodes = _clear_nodetree_for_active_material(obj)
     nodes.new('ShaderNodeAttribute')
     nodes.new('ShaderNodeBsdfDiffuse')
     nodes.new('ShaderNodeOutputMaterial')
@@ -387,45 +407,36 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
     if engine != 'CYCLES':
         raise NotImplementedError(engine)
 
-    active_mat = obj.active_material
+    node_tree, nodes = _clear_nodetree_for_active_material(obj)
+    texture = obj.active_material.active_texture
 
-    if active_mat is not None:
-        # Has material -- set up texture map tree
-
-        active_mat.use_nodes = True
-        node_tree = active_mat.node_tree
-        node_tree.nodes.new('ShaderNodeTexImage')
-        node_tree.nodes['Image Texture'].image = active_mat.active_texture.image
-        node_tree.links.new(
-            node_tree.nodes['Image Texture'].outputs[0],
-            node_tree.nodes['Diffuse BSDF'].inputs[0])
+    if texture is not None:
+        # Bundled texture found -- set up diffuse texture node tree
+        nodes.new('ShaderNodeTexImage')
+        nodes['Image Texture'].image = texture.image
+        nodes.new('ShaderNodeBsdfDiffuse')
+        nodes.new('ShaderNodeOutputMaterial')
+        node_tree.links.new(nodes['Image Texture'].outputs[0], nodes['Diffuse BSDF'].inputs[0])
+        node_tree.links.new(nodes['Diffuse BSDF'].outputs[0], nodes['Material Output'].inputs[0])
 
         if color is not None:
             logging.warning("%s: %s has a texture map associated with it -- 'color' argument ignored",
                             thisfunc, obj.name)
 
     else:
-        # No material -- set up diffuse color tree
-
+        # No texture found -- set up diffuse color tree
         if color is None:
             color = (1, 1, 1, 1)
             logging.warning((
                 "%s: %s has no texture map associated with it, "
-                "and you have not provided any value for 'color', "
+                "and you have not provided any value for argument 'color', "
                 "so opaque white color is used"
             ), thisfunc, obj.name)
 
-        mat = bpy.data.materials.new(name='new-mat-for-%s' % obj.name)
-        if obj.data.materials:
-            # Assign to first material slot
-            obj.data.materials[0] = mat
-        else:
-            # No slots
-            obj.data.materials.append(mat)
-        active_mat = obj.active_material
-        active_mat.use_nodes = True # diffuse tree set up automatically
-        node_tree = active_mat.node_tree
-        node_tree.nodes['Diffuse BSDF'].inputs[0].default_value = color
+        nodes.new('ShaderNodeBsdfDiffuse')
+        nodes['Diffuse BSDF'].inputs[0].default_value = color
+        nodes.new('ShaderNodeOutputMaterial')
+        node_tree.links.new(nodes['Diffuse BSDF'].outputs[0], nodes['Material Output'].inputs[0])
 
     # Roughness
     node_tree.nodes['Diffuse BSDF'].inputs[1].default_value = roughness
@@ -434,6 +445,33 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
     scene.update()
 
     logging.info("%s: Diffuse node tree set up for %s", thisfunc, obj.name)
+
+
+def setup_holdout_nodetree(obj):
+    """
+    Set up a holdout node tree for the object
+
+    Args:
+        obj: Object bundled with texture map
+            bpy_types.Object
+    """
+    thisfunc = thisfile + '->setup_holdout_nodetree()'
+
+    scene = bpy.context.scene
+    engine = scene.render.engine
+    if engine != 'CYCLES':
+        raise NotImplementedError(engine)
+
+    node_tree, nodes = _clear_nodetree_for_active_material(obj)
+
+    nodes.new('ShaderNodeHoldout')
+    nodes.new('ShaderNodeOutputMaterial')
+    node_tree.links.new(nodes['Holdout'].outputs[0], nodes['Material Output'].inputs[0])
+
+    # Scene update necessary, as matrix_world is updated lazily
+    scene.update()
+
+    logging.info("%s: Holdout node tree set up for %s", thisfunc, obj.name)
 
 
 def get_bmesh(obj):
