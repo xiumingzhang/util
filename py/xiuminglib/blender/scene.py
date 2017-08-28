@@ -16,19 +16,20 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def set_cycles(w=None, h=None, n_samples=None, transp_bg=None, color_mode=None, color_depth=None):
+def set_cycles(w=None, h=None, n_samples=None, max_bounces=None, min_bounces=None, transp_bg=None, color_mode=None, color_depth=None):
     """
     Set up Cycles as rendering engine
 
     Args:
-        w: Width of render in pixels
-            Integer
-            Optional; no change if not given
-        h: Height of render in pixels
-            Integer
+        w, h: Width, height of render in pixels
+            Positive integer
             Optional; no change if not given
         n_samples: Number of samples
-            Integer
+            Positive integer
+            Optional; no change if not given
+        max_bounces, min_bounces: Maximum, minimum number of light bounces
+            Setting max_bounces to 0 for direct lighting only
+            Natural number
             Optional; no change if not given
         transp_bg: Whether world background is transparent
             Boolean
@@ -38,7 +39,7 @@ def set_cycles(w=None, h=None, n_samples=None, transp_bg=None, color_mode=None, 
             Optional; no change if not given
         color_depth: Color depth
             '8' or '16'
-            Optional; defaults to 'RGB'
+            Optional; no change if not given
     """
     thisfunc = thisfile + '->set_cycles()'
 
@@ -49,8 +50,10 @@ def set_cycles(w=None, h=None, n_samples=None, transp_bg=None, color_mode=None, 
     cycles.use_progressive_refine = True
     if n_samples is not None:
         cycles.samples = n_samples
-    cycles.max_bounces = 100
-    cycles.min_bounces = 10
+    if max_bounces is not None:
+        cycles.max_bounces = max_bounces
+    if min_bounces is not None:
+        cycles.min_bounces = min_bounces
     cycles.caustics_reflective = False
     cycles.caustics_refractive = False
     cycles.diffuse_bounces = 10
@@ -309,10 +312,7 @@ def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_dept
     Set some of the scene attributes more easily
 
     Args:
-        w: Width of render in pixels
-            Integer
-            Optional; no change if not given
-        h: Height of render in pixels
+        w, h: Width, height of render in pixels
             Integer
             Optional; no change if not given
         n_samples: Number of samples
