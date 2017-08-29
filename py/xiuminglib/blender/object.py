@@ -237,7 +237,7 @@ def create_mesh(verts, faces, name):
     mesh_data.from_pydata(verts, [], faces)
     mesh_data.update()
 
-    logging.info("%s: Mesh %s created", thisfunc, name)
+    logging.info("%s: Mesh '%s' created", thisfunc, name)
 
     return mesh_data
 
@@ -281,7 +281,7 @@ def create_object_from_mesh(mesh_data, obj_name, location=(0, 0, 0), rotation_eu
     obj.rotation_euler = rotation_euler
     obj.scale = scale
 
-    logging.info("%s: Object %s created from mesh data and selected",
+    logging.info("%s: Object '%s' created from mesh data and selected",
                  thisfunc, obj_name)
 
     # Scene update necessary, as matrix_world is updated lazily
@@ -380,8 +380,8 @@ def color_vertices(obj, vert_ind, colors):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Vertex color(s) added to %s", thisfunc, obj.name)
-    logging.warning("%s:     ..., so node tree of %s has changed", thisfunc, obj.name)
+    logging.info("%s: Vertex color(s) added to '%s'", thisfunc, obj.name)
+    logging.warning("%s:     ..., so node tree of '%s' has changed", thisfunc, obj.name)
 
 
 def setup_diffuse_nodetree(obj, roughness=0, color=None):
@@ -444,7 +444,7 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Diffuse node tree set up for %s", thisfunc, obj.name)
+    logging.info("%s: Diffuse node tree set up for '%s'", thisfunc, obj.name)
 
 
 def setup_emission_nodetree(obj, color=(1, 1, 1, 1), strength=1):
@@ -479,7 +479,7 @@ def setup_emission_nodetree(obj, color=(1, 1, 1, 1), strength=1):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Emission node tree set up for %s", thisfunc, obj.name)
+    logging.info("%s: Emission node tree set up for '%s'", thisfunc, obj.name)
 
 
 def setup_holdout_nodetree(obj):
@@ -506,7 +506,7 @@ def setup_holdout_nodetree(obj):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Holdout node tree set up for %s", thisfunc, obj.name)
+    logging.info("%s: Holdout node tree set up for '%s'", thisfunc, obj.name)
 
 
 def get_bmesh(obj):
@@ -564,7 +564,7 @@ def subdivide_mesh(obj, n_subdiv=2):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Subdivided mesh of %s", thisfunc, obj.name)
+    logging.info("%s: Subdivided mesh of '%s'", thisfunc, obj.name)
 
 
 def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
@@ -626,4 +626,4 @@ def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Selected %s elements of %s", thisfunc, select_type, obj.name)
+    logging.info("%s: Selected %s elements of '%s'", thisfunc, select_type, obj.name)

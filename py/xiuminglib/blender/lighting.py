@@ -38,7 +38,7 @@ def point_light_to(light, target):
     rot_quat = direction.to_track_quat('-Z', 'Y')
     light.rotation_euler = rot_quat.to_euler()
 
-    logging.info("%s: Lamp %s points to %s now", thisfunc, light.name, target)
+    logging.info("%s: Lamp '%s' points to %s now", thisfunc, light.name, target)
 
 
 def add_light_sun(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=1, size=0.1):

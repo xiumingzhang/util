@@ -301,7 +301,7 @@ def render_mask(outpath, cam, obj_names=None):
     # Render
     bpy.ops.render.render(write_still=True)
 
-    logging.info("%s: Binary mask(s) of %s rendered through %s", thisfunc, obj_names, cam.name)
+    logging.info("%s: Binary mask(s) of %s rendered through '%s'", thisfunc, obj_names, cam.name)
     logging.warning("%s:     ..., and node trees of these objects and object renderability have changed", thisfunc)
 
     return outpath_final

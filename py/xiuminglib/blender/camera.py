@@ -81,7 +81,7 @@ def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERS
     cam.data.clip_start = clip_start
     cam.data.clip_end = clip_end
 
-    logging.info("%s: Camera added", thisfunc)
+    logging.info("%s: Camera '%s' added", thisfunc, cam.name)
 
     return cam
 
@@ -163,7 +163,7 @@ def point_camera_to(cam, xyz_target):
     rot_quat = direction.to_track_quat('-Z', 'Y')
     cam.rotation_euler = rot_quat.to_euler()
 
-    logging.info("%s: Camera %s pointed to %s", thisfunc, cam.name, xyz_target)
+    logging.info("%s: Camera '%s' pointed to %s", thisfunc, cam.name, xyz_target)
 
     return cam
 
@@ -360,7 +360,7 @@ def get_camera_matrix(cam, keep_disparity=False):
     # Camera matrix
     cam_mat = int_mat * ext_mat
 
-    logging.info("%s: Done computing camera matrix", thisfunc)
+    logging.info("%s: Done computing camera matrix for '%s'", thisfunc, cam.name)
     logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
 
     return cam_mat, int_mat, ext_mat
