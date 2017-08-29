@@ -20,16 +20,16 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def remove_object(name_pattern):
+def remove_objects(name_pattern):
     """
-    Remove object from current scene
+    Remove object(s) from current scene
 
     Args:
         name_pattern: Names of objects to remove
             String (python regex supported)
             Use '.*' to remove all objects
     """
-    thisfunc = thisfile + '->remove_object()'
+    thisfunc = thisfile + '->remove_objects()'
 
     # Regex
     assert (name_pattern != '*'), "Want to match everything? Correct regex for this is '.*'"
