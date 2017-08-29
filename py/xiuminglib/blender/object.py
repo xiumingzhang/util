@@ -51,9 +51,9 @@ def remove_object(name_pattern):
     logging.info("%s: Removed from scene: %s", thisfunc, removed)
 
 
-def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=(0, 0, 0), scale=1, name=None):
+def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=(0, 0, 0), scale=1, name=None):
     """
-    Add object to current scene, the low-level way
+    Import external object to current scene, the low-level way
 
     Args:
         model_path: Path to object to add
@@ -75,13 +75,13 @@ def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=
         obj: Handle(s) of imported object(s)
             bpy_types.Object or list thereof
     """
-    thisfunc = thisfile + '->add_object()'
+    thisfunc = thisfile + '->import_object()'
 
     # Import
     if model_path.endswith('.obj'):
         bpy.ops.import_scene.obj(filepath=model_path, axis_forward='-Z', axis_up='Y')
     else:
-        raise NotImplementedError("Importing model of this type")
+        raise NotImplementedError(".%s" % model_path.split('.')[-1])
 
     obj_list = []
     for i, obj in enumerate(bpy.context.selected_objects):
