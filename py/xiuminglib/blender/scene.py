@@ -157,7 +157,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
             Optional; defaults to None
 
     Returns:
-        result_path: Path(s) to the rendering ('outpath' prefixed by camera name)
+        result_path: Path(s) to the rendering ('outpath' suffixed by camera name)
             String or list thereof
     """
     thisfunc = thisfile + '->render()'
@@ -185,8 +185,9 @@ def render(outpath, text=None, cam_names=None, hide=None):
                 # Set active camera
                 bpy.context.scene.camera = cam
 
-                # Prepend camera name
-                outpath_final = join(dirname(outpath), cam.name + '_' + basename(outpath))
+                # Append camera name
+                ext = outpath.split('.')[-1]
+                outpath_final = outpath.replace('.' + ext, '_%s.' % cam.name + ext)
                 bpy.context.scene.render.filepath = outpath_final
                 result_path.append(outpath_final)
 
@@ -238,7 +239,7 @@ def render_mask(outpath, cam, obj_names=None):
             Optional; defaults to None (all objects)
 
     Returns:
-        result_path: Path(s) to the rendering ('outpath' prefixed by object names)
+        result_path: Path(s) to the rendering ('outpath' suffixed by object names)
             String
     """
     thisfunc = thisfile + '->render_mask()'
@@ -249,7 +250,9 @@ def render_mask(outpath, cam, obj_names=None):
         obj_names = [o.name for o in bpy.data.objects if o.type == 'MESH']
 
     scene = bpy.context.scene
-    assert (scene.render.engine == 'CYCLES'), "Only works with Cycles"
+    engine = scene.render.engine
+    if engine != 'CYCLES':
+        raise NotImplementedError(engine)
 
     outdir = dirname(outpath)
     if not exists(outdir):
@@ -258,9 +261,9 @@ def render_mask(outpath, cam, obj_names=None):
     # Set active camera
     scene.camera = cam
 
-    # Prepend names of objects of interest
-    ext = '.' + outpath.split('.')[-1]
-    outpath_final = outpath.replace(ext, '_mask-of-' + '-'.join(obj_names) + ext)
+    # Append names of objects of interest
+    ext = outpath.split('.')[-1]
+    outpath_final = outpath.replace('.' + ext, '_mask-of-' + '-'.join(obj_names) + '.' + ext)
     scene.render.filepath = outpath_final
 
     # Set background pure black (by using no background node)
