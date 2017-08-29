@@ -447,6 +447,41 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
     logging.info("%s: Diffuse node tree set up for %s", thisfunc, obj.name)
 
 
+def setup_emission_nodetree(obj, color=(1, 1, 1, 1), strength=1):
+    """
+    Set up an emission node tree for the object
+
+    Args:
+        obj: Object bundled with texture map
+            bpy_types.Object
+        color: Emission RGBA
+            4-tuple of floats ranging from 0 to 1
+            Optional; defaults to opaque white
+        strength: Emission strength
+            Float
+            Optional; defaults to 1
+    """
+    thisfunc = thisfile + '->setup_emission_nodetree()'
+
+    scene = bpy.context.scene
+    engine = scene.render.engine
+    if engine != 'CYCLES':
+        raise NotImplementedError(engine)
+
+    node_tree, nodes = _clear_nodetree_for_active_material(obj)
+
+    nodes.new('ShaderNodeEmission')
+    nodes['Emission'].inputs[0].default_value = color
+    nodes['Emission'].inputs[1].default_value = strength
+    nodes.new('ShaderNodeOutputMaterial')
+    node_tree.links.new(nodes['Emission'].outputs[0], nodes['Material Output'].inputs[0])
+
+    # Scene update necessary, as matrix_world is updated lazily
+    scene.update()
+
+    logging.info("%s: Emission node tree set up for %s", thisfunc, obj.name)
+
+
 def setup_holdout_nodetree(obj):
     """
     Set up a holdout node tree for the object
