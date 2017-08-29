@@ -40,8 +40,8 @@ def matrix_as_heatmap(mat, outpath='./matrix_as_heatmap.png', figtitle=None):
     im = ax.imshow(mat)
 
     # Colorbar
-    # Create an axes on the right side of ax. The width of cax will be 2%
-    # of ax and the padding between cax and ax will be fixed at 0.1 inch.
+    # Create an axes on the right side of ax; width will be 2% of ax,
+    # and the padding between cax and ax will be fixed at 0.1 inch
     cax = make_axes_locatable(ax).append_axes('right', size='2%', pad=0.2)
     plt.colorbar(im, cax=cax)
 
