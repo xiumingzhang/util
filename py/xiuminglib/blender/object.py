@@ -20,29 +20,43 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def remove_objects(name_pattern):
+def remove_objects(name_pattern, regex=False):
     """
     Remove object(s) from current scene
 
     Args:
-        name_pattern: Names of objects to remove
-            String (python regex supported)
-            Use '.*' to remove all objects
+        name_pattern: Name or name pattern of object(s) to remove
+            String
+        regex: Whether to interpret 'name_pattern' as a regex
+            Boolean
+            Optional; defaults to False
     """
     thisfunc = thisfile + '->remove_objects()'
 
-    # Regex
-    assert (name_pattern != '*'), "Want to match everything? Correct regex for this is '.*'"
-    name_pattern = re.compile(name_pattern)
-
     objs = bpy.data.objects
     removed = []
-    for obj in objs:
-        if name_pattern.match(obj.name):
-            obj.select = True
-            removed.append(obj.name)
-        else:
-            obj.select = False
+
+    if regex:
+        assert (name_pattern != '*'), "Want to match everything? Correct regex for this is '.*'"
+
+        name_pattern = re.compile(name_pattern)
+
+        for obj in objs:
+            if name_pattern.match(obj.name):
+                obj.select = True
+                removed.append(obj.name)
+            else:
+                obj.select = False
+
+    else:
+        for obj in objs:
+            if obj.name == name_pattern:
+                obj.select = True
+                removed.append(obj.name)
+            else:
+                obj.select = False
+
+    # Delete
     bpy.ops.object.delete()
 
     # Scene update necessary, as matrix_world is updated lazily
