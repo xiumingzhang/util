@@ -20,7 +20,7 @@ def matrix_as_heatmap(mat, outpath='./matrix_as_heatmap.png', figtitle=None):
 
     Args:
         mat: Matrix to visualize as heatmp
-            2D numpy array
+            2D numpy array that may contain NaN's that will be plotted white
         outpath: Path to which the visualization is saved
             String
             Optional; defaults to './matrix_as_heatmap.png'
@@ -40,9 +40,9 @@ def matrix_as_heatmap(mat, outpath='./matrix_as_heatmap.png', figtitle=None):
     im = ax.imshow(mat)
 
     # Colorbar
-    # Create an axes on the right side of ax; width will be 2% of ax,
+    # Create an axes on the right side of ax; width will be 4% of ax,
     # and the padding between cax and ax will be fixed at 0.1 inch
-    cax = make_axes_locatable(ax).append_axes('right', size='2%', pad=0.2)
+    cax = make_axes_locatable(ax).append_axes('right', size='4%', pad=0.2)
     plt.colorbar(im, cax=cax)
 
     # Save plot
