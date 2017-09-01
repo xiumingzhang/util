@@ -14,13 +14,47 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cv2
 
 
-def matrix_as_heatmap(mat, outpath='./matrix_as_heatmap.png', figtitle=None):
+def plot_wrapper(*args, outpath='./plot.png', figtitle=None, **kwargs):
+    """
+    Plot an array as curve
+
+    Args:
+        *args, **kwargs: Positional and/or keyword parameters that plot() takes
+            See documentation for matplotlib.pyplot.plot()
+        outpath: Path to which the visualization is saved
+            String
+            Optional; defaults to './plot.png'
+        figtitle: Figure title
+            String
+            Optional; defaults to None (no title)
+    """
+    figsize = 14
+    plt.figure(figsize=(figsize, figsize))
+    ax = plt.gca()
+
+    # Set title
+    if figtitle is not None:
+        ax.set_title(figtitle)
+
+    plt.plot(*args, **kwargs)
+
+    plt.grid()
+
+    # Save plot
+    plt.savefig(outpath, bbox_inches='tight')
+
+
+def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatmap.png', figtitle=None):
     """
     Visualizes a matrix as heatmap
 
     Args:
         mat: Matrix to visualize as heatmp
             2D numpy array that may contain NaN's that will be plotted white
+        center_around_zero: Whether to center colorbar around 0 (so that zero is no color, i.e., white)
+            Useful when matrix consists of both positive and negative values, and 0 means "nothing"
+            Boolean
+            Optional; defaults to False (default colormap and auto range)
         outpath: Path to which the visualization is saved
             String
             Optional; defaults to './matrix_as_heatmap.png'
@@ -36,8 +70,17 @@ def matrix_as_heatmap(mat, outpath='./matrix_as_heatmap.png', figtitle=None):
     if figtitle is not None:
         ax.set_title(figtitle)
 
-    # Generate heatmap with matrix entries
-    im = ax.imshow(mat)
+    if center_around_zero:
+        # vmin and vmax are set such that 0 is always no color (white)
+        v_abs_max = max(abs(np.min(mat)), abs(np.max(mat)))
+        v_max, v_min = v_abs_max, -v_abs_max
+        plt.set_cmap('bwr') # blue for negative, white for zero, red for positive
+
+        # Generate heatmap with matrix entries
+        im = ax.imshow(mat, interpolation='none', vmin=v_min, vmax=v_max)
+    else:
+        # Generate heatmap with matrix entries
+        im = ax.imshow(mat, interpolation='none')
 
     # Colorbar
     # Create an axes on the right side of ax; width will be 4% of ax,

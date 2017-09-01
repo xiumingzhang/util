@@ -27,6 +27,7 @@ def pca(data_mat, n_pcs=None, use_scipy=False):
             Optional; defaults to m - 1
         use_scipy: Whether to use scipy's sparse.linalg.eigsh()
             Useful when numpy's linalg.eigh() gives bizarre results
+            Boolean
             Optional; defaults to False
 
     Returns:
