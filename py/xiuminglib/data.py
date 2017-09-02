@@ -46,7 +46,7 @@ def pca(data_mat, n_pcs=None, use_scipy=False):
         n_pcs = data_mat.shape[0] - 1
 
     # Compute covariance matrix of data
-    covmat = np.cov(data_mat) # data_mat not necessarily centered
+    covmat = np.cov(data_mat) # doesn't matter whether data_mat are centered
     # covmat is real and symmetric in theory, but may not be so due to numerical issues
 
     # Compute eigenvalues and eigenvectors
