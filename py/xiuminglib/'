@@ -11,7 +11,6 @@ from copy import deepcopy
 import numpy as np
 import cv2
 from scipy.interpolate import RectBivariateSpline, interp2d
-from scipy.ndimage.filters import minimum_filter, maximum_filter
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
@@ -210,7 +209,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
     return interp_val
 
 
-def find_local_extrema(im, want_maxima, kernel_size=3):
+def find_local_extrema(im, want_maxima):
     """
     Find local maxima or minima in an image
 
@@ -220,16 +219,11 @@ def find_local_extrema(im, want_maxima, kernel_size=3):
             Extrema are found independently for each of the c channels
         want_maxima: Whether maxima or minima is wanted
             Boolean
-        kernel_size: Side length of the square window under consideration
-            Integer larger than 1
-            Optional; defaults to 3
 
     Returns:
         is_extremum: Binary map indicating if each pixel is a local extremum
             Boolean numpy array of the same size as 'im'
     """
-    logging.error("find_local_extrema() not tested yet!")
-
     # Figure out image size and number of channels
     if im.ndim == 3:
         h, w, c = im.shape
@@ -242,24 +236,7 @@ def find_local_extrema(im, want_maxima, kernel_size=3):
     else:
         raise ValueError("'im' must have either two or three dimensions")
 
-    kernel = np.ones((kernel_size, kernel_size)).astype(bool)
-
-    is_extremum = np.zeros((h, w, c), dtype=bool)
-
-    for i in range(c):
-        z = im[:, :, i]
-
-        if want_maxima:
-            equals_extremum = maximum_filter(z, footprint=kernel) == z
-        else:
-            equals_extremum = minimum_filter(z, footprint=kernel) == z
-
-        is_extremum[:, :, i] = equals_extremum
-
-    if expanded:
-        is_extremum = is_extremum[:, :, 0]
-
-    return is_extremum
+    # 
 
 
 def compute_gradients(im):
