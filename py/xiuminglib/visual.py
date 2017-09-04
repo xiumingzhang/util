@@ -52,19 +52,19 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     Args:
         im: Image to scatter on
             h-by-w (grayscale) or h-by-w-by-3 (RGB) numpy array
-        pts: UV coordinates of the scatter point(s)
-            +-----------> u
+        pts: Coordinates of the scatter point(s)
+            +-----------> dim1
             |
             |
             |
-            v v
+            v dim0
             Array_like of length 2 or shape (n, 2)
-        size: Size of scatter points
-            Positive float
+        size: Size(s) of scatter points
+            Positive float or array_like thereof of length n
             Optional; defaults to 2
-        bgr: BGR color of scatter points
-            3-tuple of integers ranging from 0 to 255
-            Optional; defaults to (0, 0, 255), i.e., red
+        bgr: BGR color(s) of scatter points
+            3-tuple of integers ranging from 0 to 255 or array_like thereof of shape (n, 3)
+            Optional; defaults to (0, 0, 255), i.e., all red
         outpath: Path to which the visualization is saved
             String
             Optional; defaults to './scatter_on_image.png'
@@ -72,19 +72,32 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     thickness = -1 # for filled circles
 
     # Standardize inputs
+
+    if im.ndim == 2: # grayscale
+        im = np.stack((im, im, im), axis=2) # to BGR
+
     pts = np.array(pts)
     if pts.ndim == 1:
         pts = pts.reshape(-1, 2)
-    if im.ndim == 2: # grayscale
-        im = np.stack((im, im, im), axis=2) # BGR
+    n_pts = pts.shape[0]
+
+    if isinstance(size, int):
+        size = np.array([size] * n_pts)
+    else:
+        size = np.array(size)
+
+    bgr = np.array(bgr)
+    if bgr.ndim == 1:
+        bgr = np.tile(bgr, (n_pts, 1))
 
     # FIXME -- necessary due to OpenCV bugs?
     im = im.copy()
 
     # Put on scatter points
     for i in range(pts.shape[0]):
-        uv = tuple(pts[i, :].astype(int))
-        cv2.circle(im, uv, size, bgr, thickness)
+        uv = tuple(pts[i, ::-1].astype(int))
+        color = (int(bgr[i, 0]), int(bgr[i, 1]), int(bgr[i, 2]))
+        cv2.circle(im, uv, size[i], color, thickness)
 
     # Write to disk
     cv2.imwrite(outpath, im)
