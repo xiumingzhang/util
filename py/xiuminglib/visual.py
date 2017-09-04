@@ -29,6 +29,7 @@ def plot_wrapper(*args, outpath='./plot.png', figtitle=None, **kwargs):
             Optional; defaults to None (no title)
     """
     figsize = 14
+
     plt.figure(figsize=(figsize, figsize))
     ax = plt.gca()
 
@@ -42,6 +43,51 @@ def plot_wrapper(*args, outpath='./plot.png', figtitle=None, **kwargs):
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
+
+
+def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_image.png'):
+    """
+    Scatter plot on top of an image
+
+    Args:
+        im: Image to scatter on
+            h-by-w (grayscale) or h-by-w-by-3 (RGB) numpy array
+        pts: UV coordinates of the scatter point(s)
+            +-----------> u
+            |
+            |
+            |
+            v v
+            Array_like of length 2 or shape (n, 2)
+        size: Size of scatter points
+            Positive float
+            Optional; defaults to 2
+        bgr: BGR color of scatter points
+            3-tuple of integers ranging from 0 to 255
+            Optional; defaults to (0, 0, 255), i.e., red
+        outpath: Path to which the visualization is saved
+            String
+            Optional; defaults to './scatter_on_image.png'
+    """
+    thickness = -1 # for filled circles
+
+    # Standardize inputs
+    pts = np.array(pts)
+    if pts.ndim == 1:
+        pts = pts.reshape(-1, 2)
+    if im.ndim == 2: # grayscale
+        im = np.stack((im, im, im), axis=2) # BGR
+
+    # FIXME -- necessary due to OpenCV bugs?
+    im = im.copy()
+
+    # Put on scatter points
+    for i in range(pts.shape[0]):
+        uv = tuple(pts[i, :].astype(int))
+        cv2.circle(im, uv, size, bgr, thickness)
+
+    # Write to disk
+    cv2.imwrite(outpath, im)
 
 
 def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatmap.png', figtitle=None):
@@ -63,6 +109,7 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
             Optional; defaults to None (no title)
     """
     figsize = 14
+
     plt.figure(figsize=(figsize, figsize))
     ax = plt.gca()
 
