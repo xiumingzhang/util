@@ -8,7 +8,8 @@ August 2017
 import logging
 from os.path import abspath
 import numpy as np
-from scipy import sparse
+from scipy.sparse import issparse
+from scipy.sparse.linalg import eigsh
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,8 @@ thisfile = abspath(__file__)
 def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     """
     Perform PCA on data via eigendecomposition of covariance matrix
+        To reconstruct data with top k PC's, do
+            pcs[:, :k].dot(projs[:k, :]) + np.tile(data_mean, (projs.shape[1], 1)).T
 
     Args:
         data_mat: Data matrix of n data points in the m-D space
@@ -39,7 +42,7 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
         data_mean: Mean that can be used to recover raw data
             Numpy array of length m
     """
-    if sparse.issparse(data_mat):
+    if issparse(data_mat):
         data_mat = data_mat.toarray()
     else:
         data_mat = np.array(data_mat)
@@ -58,7 +61,7 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
 
     if eig_method == 'scipy.sparse.linalg.eigsh':
         # Largest (in magnitude) n_pcs eigenvalues
-        eig_vals, eig_vecs = sparse.linalg.eigsh(covmat, k=n_pcs, which='LM')
+        eig_vals, eig_vecs = eigsh(covmat, k=n_pcs, which='LM')
         # eig_vals in ascending order
         # eig_vecs columns are normalized eigenvectors
 

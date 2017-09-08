@@ -5,6 +5,8 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
+from os import makedirs
+from os.path import dirname, exists
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -40,6 +42,11 @@ def plot_wrapper(*args, outpath='./plot.png', figtitle=None, **kwargs):
     plt.plot(*args, **kwargs)
 
     plt.grid()
+
+    # Make directory, if necessary
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir)
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
