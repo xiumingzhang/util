@@ -8,27 +8,26 @@ August 2017
 import logging
 from os.path import abspath
 import numpy as np
-from scipy.sparse.linalg import eigsh
+from scipy import sparse
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def pca(data_mat, n_pcs=None, use_scipy=False):
+def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     """
     Perform PCA on data via eigendecomposition of covariance matrix
 
     Args:
         data_mat: Data matrix of n data points in the m-D space
-            Array_like of shape (m, n); each column is a point
+            Array_like, dense or sparse, of shape (m, n); each column is a point
         n_pcs: Number of top PC's requested
             Positive integer < m
             Optional; defaults to m - 1
-        use_scipy: Whether to use scipy's sparse.linalg.eigsh()
-            Useful when numpy's linalg.eigh() gives bizarre results
-            Boolean
-            Optional; defaults to False
+        eig_method: Method for eigendecomposition of the symmetric covariance matrix
+            'numpy.linalg.eigh' or 'scipy.sparse.linalg.eigsh'
+            Optional; defaults to 'scipy.sparse.linalg.eigsh'
 
     Returns:
         pcvars: PC variances (eigenvalues of covariance matrix) in descending order
@@ -40,25 +39,32 @@ def pca(data_mat, n_pcs=None, use_scipy=False):
         data_mean: Mean that can be used to recover raw data
             Numpy array of length m
     """
-    data_mat = np.array(data_mat) # not centered
+    if sparse.issparse(data_mat):
+        data_mat = data_mat.toarray()
+    else:
+        data_mat = np.array(data_mat)
+    # data_mat is NOT centered
 
     if n_pcs is None:
         n_pcs = data_mat.shape[0] - 1
 
-    # Compute covariance matrix of data
-    covmat = np.cov(data_mat) # doesn't matter whether data_mat are centered
-    # covmat is real and symmetric in theory, but may not be so due to numerical issues
+    # ------ Compute covariance matrix of data
 
-    # Compute eigenvalues and eigenvectors
-    if use_scipy:
+    covmat = np.cov(data_mat) # auto handles uncentered data
+    # covmat is real and symmetric in theory, but may not be so due to numerical issues,
+    # so eigendecomposition method should be told explicitly to exploit symmetry constraints
+
+    # ------ Compute eigenvalues and eigenvectors
+
+    if eig_method == 'scipy.sparse.linalg.eigsh':
         # Largest (in magnitude) n_pcs eigenvalues
-        eig_vals, eig_vecs = eigsh(covmat, k=n_pcs, which='LM')
+        eig_vals, eig_vecs = sparse.linalg.eigsh(covmat, k=n_pcs, which='LM')
         # eig_vals in ascending order
         # eig_vecs columns are normalized eigenvectors
 
         pcvars = eig_vals[::-1] # descending
         pcs = eig_vecs[:, ::-1]
-    else:
+    elif eig_method == 'numpy.linalg.eigh':
         # eigh() prevents complex eigenvalues, compared with eig()
         eig_vals, eig_vecs = np.linalg.eigh(covmat)
         # eig_vals in ascending order
@@ -71,8 +77,11 @@ def pca(data_mat, n_pcs=None, use_scipy=False):
 
         pcvars = eig_vals[:-(n_pcs + 1):-1] # descending
         pcs = eig_vecs[:, :-(n_pcs + 1):-1]
+    else:
+        raise NotImplementedError(eig_method)
 
-    # Center and then project data points to PC space
+    # ------ Center and then project data points to PC space
+
     data_mean = np.mean(data_mat, axis=1)
     data_mat_centered = data_mat - np.tile(data_mean.reshape(-1, 1), (1, data_mat.shape[1]))
     projs = np.dot(pcs.T, data_mat_centered)
