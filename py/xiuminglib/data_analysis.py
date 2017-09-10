@@ -90,3 +90,11 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     projs = np.dot(pcs.T, data_mat_centered)
 
     return pcvars, pcs, projs, data_mean
+
+
+if __name__ == '__main__':
+    # Unit tests
+    import cv2
+
+    im = cv2.imread('./toy-data/images/cameraman_grayscale.gif', cv2.IMREAD_GRAYSCALE)
+    import pdb; pdb.set_trace()

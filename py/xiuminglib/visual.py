@@ -97,7 +97,7 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     if bgr.ndim == 1:
         bgr = np.tile(bgr, (n_pts, 1))
 
-    # FIXME -- necessary due to OpenCV bugs?
+    # FIXME -- necessary, probably due to OpenCV bugs?
     im = im.copy()
 
     # Put on scatter points
@@ -105,6 +105,11 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
         uv = tuple(pts[i, ::-1].astype(int))
         color = (int(bgr[i, 0]), int(bgr[i, 1]), int(bgr[i, 2]))
         cv2.circle(im, uv, size[i], color, thickness)
+
+    # Make directory, if necessary
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir)
 
     # Write to disk
     cv2.imwrite(outpath, im)
@@ -154,6 +159,11 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
     # and the padding between cax and ax will be fixed at 0.1 inch
     cax = make_axes_locatable(ax).append_axes('right', size='4%', pad=0.2)
     plt.colorbar(im, cax=cax)
+
+    # Make directory, if necessary
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir)
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
@@ -246,6 +256,11 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=N
     # of ax and the padding between cax and ax will be fixed at 0.1 inch.
     cax = make_axes_locatable(ax).append_axes('right', size='2%', pad=0.2)
     plt.colorbar(im, cax=cax)
+
+    # Make directory, if necessary
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir)
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
