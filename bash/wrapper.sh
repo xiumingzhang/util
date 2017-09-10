@@ -49,7 +49,7 @@ for clip in "${clips[@]}"; do
 			ssh "${user}@vision${id}.csail.mit.edu" "${cmd0}; ${cmd1}; ${cmd2}; exit" &
 			echo "${clip}, ${texture} submitted to vision${id}"
 		else
-			echo "${clip}, ${texture} done already, so not submitted to vision${ID}"
+			echo "${clip}, ${texture} done already, so not submitted to vision${id}"
 		fi
 
 		i=$((i+1))
