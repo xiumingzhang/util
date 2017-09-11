@@ -51,6 +51,8 @@ def plot_wrapper(*args, outpath='./plot.png', figtitle=None, **kwargs):
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
 
+    plt.close('all')
+
 
 def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_image.png'):
     """
@@ -121,7 +123,7 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
 
     Args:
         mat: Matrix to visualize as heatmp
-            2D numpy array that may contain NaN's that will be plotted white
+            2D numpy array that may contain NaN's, which will be plotted white
         center_around_zero: Whether to center colorbar around 0 (so that zero is no color, i.e., white)
             Useful when matrix consists of both positive and negative values, and 0 means "nothing"
             Boolean
@@ -144,7 +146,7 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
 
     if center_around_zero:
         # vmin and vmax are set such that 0 is always no color (white)
-        v_abs_max = max(abs(np.min(mat)), abs(np.max(mat)))
+        v_abs_max = max(abs(np.nanmin(mat)), abs(np.nanmax(mat)))
         v_max, v_min = v_abs_max, -v_abs_max
         plt.set_cmap('bwr') # blue for negative, white for zero, red for positive
 
@@ -167,6 +169,8 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
+
+    plt.close('all')
 
 
 def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=None):
@@ -264,3 +268,5 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=N
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
+
+    plt.close('all')
