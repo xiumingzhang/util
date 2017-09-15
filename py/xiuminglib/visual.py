@@ -16,19 +16,25 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cv2
 
 
-def plot_wrapper(*args, outpath='./plot.png', figtitle=None, **kwargs):
+def plot_wrapper(*args, figtitle=None, grid=True, xlabel=None, ylabel=None, outpath='./plot.png', **kwargs):
     """
-    Plot an array as curve
+    Convinience wrapper for matplotlib.pyplot.plot()
 
     Args:
         *args, **kwargs: Positional and/or keyword parameters that plot() takes
             See documentation for matplotlib.pyplot.plot()
-        outpath: Path to which the visualization is saved
-            String
-            Optional; defaults to './plot.png'
         figtitle: Figure title
             String
             Optional; defaults to None (no title)
+        grid: Whether to draw grid
+            Boolean
+            Optional; defaults to True
+        xlabel, ylabel: Label of x- or y-axis
+            String
+            Optional; defaults to None (no label)
+        outpath: Path to which the visualization is saved
+            String
+            Optional; defaults to './plot.png'
     """
     figsize = 14
 
@@ -41,7 +47,9 @@ def plot_wrapper(*args, outpath='./plot.png', figtitle=None, **kwargs):
 
     plt.plot(*args, **kwargs)
 
-    plt.grid()
+    plt.grid(grid)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
 
     # Make directory, if necessary
     outdir = dirname(outpath)
