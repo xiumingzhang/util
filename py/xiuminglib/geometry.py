@@ -14,24 +14,37 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def cartesian2spherical(pts_cartesian):
+def cartesian2spherical(pts_cartesian, convention='lat-lng'):
     """
     Converts 3D Cartesian coordinates to spherical coordinates, following the convention below
 
-                                ^ z (lat = 90)
-                                |
-                                |
-           (lng = -90) ---------+---------> y (lng = 90)
-                              ,'|
-                            ,'  |
-                          x     | (lat = -90)
-
     Args:
         pts_cartesian: Cartesian x, y and z
-            Array_like of shape '(3,)' or '(n, 3)'
+            Array_like of shape (3,) or (n, 3)
+        convention: Convention for spherical coordinates
+            'lat-lng' or 'theta-phi'
+            Optional; defaults to 'lat-lng'
+
+            'lat-lng'
+                                            ^ z (lat = 90)
+                                            |
+                                            |
+                       (lng = -90) ---------+---------> y (lng = 90)
+                                          ,'|
+                                        ,'  |
+                   (lat = 0, lng = 0) x     | (lat = -90)
+
+            'theta-phi'
+                                            ^ z (theta = 0)
+                                            |
+                                            |
+                       (phi = 270) ---------+---------> y (phi = 90)
+                                          ,'|
+                                        ,'  |
+                (theta = 90, phi = 0) x     | (theta = 180)
 
     Returns:
-        pts_spherical: Spherical r, lat and lng (in radians)
+        pts_spherical: Spherical coordinates (r, angle1, angle2) in radians
             Numpy array of same shape as input
     """
     pts_cartesian = np.array(pts_cartesian)
@@ -41,7 +54,7 @@ def cartesian2spherical(pts_cartesian):
     if pts_cartesian.shape == (3,):
         is_one_point = True
         pts_cartesian = pts_cartesian.reshape(1, 3)
-    elif len(pts_cartesian.shape) != 2 or pts_cartesian.shape[1] != 3:
+    elif pts_cartesian.ndim != 2 or pts_cartesian.shape[1] != 3:
         raise ValueError("Shape of input must be either (3,) or (n, 3)")
 
     # Compute r
@@ -57,7 +70,15 @@ def cartesian2spherical(pts_cartesian):
     lng = np.arctan2(y, x) # choosing the quadrant correctly
 
     # Assemble
-    pts_spherical = np.stack((r, lat, lng), axis=-1) # let this new axis be the last dimension
+    pts_r_lat_lng = np.stack((r, lat, lng), axis=-1) # let this new axis be the last dimension
+
+    # Select output convention
+    if convention == 'lat-lng':
+        pts_spherical = pts_r_lat_lng
+    elif convention == 'theta-phi':
+        pts_spherical = _convert_spherical_conventions(pts_r_lat_lng, 'lat-lng_to_theta-phi')
+    else:
+        raise NotImplementedError(convention)
 
     if is_one_point:
         pts_spherical = pts_spherical.reshape(3)
@@ -65,11 +86,44 @@ def cartesian2spherical(pts_cartesian):
     return pts_spherical
 
 
-def spherical2cartesian(pts_spherical):
+def _convert_spherical_conventions(pts_r_angle1_angle2, what2what):
     """
-    Inverse of cartesian2spherical
+    Internal function converting between different conventions for spherical coordinates
+        See cartesian2spherical() for conventions
+    """
+    if what2what == 'lat-lng_to_theta-phi':
+        pts_r_theta_phi = np.zeros(pts_r_angle1_angle2.shape)
+        # Radius is the same
+        pts_r_theta_phi[:, 0] = pts_r_angle1_angle2[:, 0]
+        # Angle 1
+        pts_r_theta_phi[:, 1] = np.pi / 2 - pts_r_angle1_angle2[:, 1]
+        # Angle 2
+        ind = pts_r_angle1_angle2[:, 2] < 0
+        pts_r_theta_phi[ind, 2] = 2 * np.pi + pts_r_angle1_angle2[ind, 2]
+        pts_r_theta_phi[np.logical_not(ind), 2] = pts_r_angle1_angle2[np.logical_not(ind), 2]
+        return pts_r_theta_phi
 
-    See cartesian2spherical for spherical convention, args and returns
+    elif what2what == 'theta-phi_to_lat-lng':
+        pts_r_lat_lng = np.zeros(pts_r_angle1_angle2.shape)
+        # Radius is the same
+        pts_r_lat_lng[:, 0] = pts_r_angle1_angle2[:, 0]
+        # Angle 1
+        pts_r_lat_lng[:, 1] = np.pi / 2 - pts_r_angle1_angle2[:, 1]
+        # Angle 2
+        ind = pts_r_angle1_angle2[:, 2] > np.pi
+        pts_r_lat_lng[ind, 2] = pts_r_angle1_angle2[ind, 2] - 2 * np.pi
+        pts_r_lat_lng[np.logical_not(ind), 2] = pts_r_angle1_angle2[np.logical_not(ind), 2]
+        return pts_r_lat_lng
+
+    else:
+        raise NotImplementedError(what2what)
+
+
+def spherical2cartesian(pts_spherical, convention='lat-lng'):
+    """
+    Inverse of cartesian2spherical()
+
+    See cartesian2spherical() for spherical convention, args and returns
     """
     thisfunc = thisfile + '->spherical2cartesian()'
 
@@ -80,17 +134,25 @@ def spherical2cartesian(pts_spherical):
     if pts_spherical.shape == (3,):
         is_one_point = True
         pts_spherical = pts_spherical.reshape(1, 3)
-    elif len(pts_spherical.shape) != 2 or pts_spherical.shape[1] != 3:
+    elif pts_spherical.ndim != 2 or pts_spherical.shape[1] != 3:
         raise ValueError("Shape of input must be either (3,) or (n, 3)")
 
     # Degrees?
     if (np.abs(pts_spherical[:, 1:]) > 2 * np.pi).any():
         logging.warning("%s: Some input value falls outside [-2pi, 2pi]. Sure inputs are in radians?", thisfunc)
 
+    # Convert to latitude-longitude convention, if necessary
+    if convention == 'lat-lng':
+        pts_r_lat_lng = pts_spherical
+    elif convention == 'theta-phi':
+        pts_r_lat_lng = _convert_spherical_conventions(pts_spherical, 'theta-phi_to_lat-lng')
+    else:
+        raise NotImplementedError(convention)
+
     # Compute x, y and z
-    r = pts_spherical[:, 0]
-    lat = pts_spherical[:, 1]
-    lng = pts_spherical[:, 2]
+    r = pts_r_lat_lng[:, 0]
+    lat = pts_r_lat_lng[:, 1]
+    lng = pts_r_lat_lng[:, 2]
     z = r * np.sin(lat)
     x = r * np.cos(lat) * np.cos(lng)
     y = r * np.cos(lat) * np.sin(lng)

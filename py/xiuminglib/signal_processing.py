@@ -1,5 +1,5 @@
 """
-Utility Functions for Simple Math Operations
+Functions for Signal Processing Techniques
 
 Xiuming Zhang, MIT CSAIL
 August 2017
@@ -67,6 +67,7 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
 
         pcvars = eig_vals[::-1] # descending
         pcs = eig_vecs[:, ::-1]
+
     elif eig_method == 'numpy.linalg.eigh':
         # eigh() prevents complex eigenvalues, compared with eig()
         eig_vals, eig_vecs = np.linalg.eigh(covmat)
@@ -80,6 +81,7 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
 
         pcvars = eig_vals[:-(n_pcs + 1):-1] # descending
         pcs = eig_vecs[:, :-(n_pcs + 1):-1]
+
     else:
         raise NotImplementedError(eig_method)
 
@@ -92,9 +94,39 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     return pcvars, pcs, projs, data_mean
 
 
+def matrix_for_real_spherical_harmonics(l, n_theta, n_phi):
+    """
+    Generate transform matrix for discrete real spherical harmonic (SH) expansion
+
+    Args:
+        l: Band index
+            Natural number
+        n_theta: Number of discretization levels of polar angle, 0 =< theta < 180; this
+            will be the image height if the image is an equirectangular map (see below)
+            Natural number
+        n_phi: Number of discretization levels of azimuthal angle, 0 =< phi < 360; this
+            will be the image width if the image is an equirectangular map (see below)
+            Natural number
+
+        Spherical coordinates conventions (here) / equirectangular map conventions
+
+                                                       ^ z (theta = 0 / lat = 90)
+                                                       |
+                                                       |
+                      (phi = 270 / lng = -90) ---------+---------> y (phi = 90 / lng = 90)
+                                                     ,'|
+                                                   ,'  |
+        (theta = 90, phi = 0 / lat = 0, lng = 0) x     | (theta = 180 / lat = -90)
+
+    Returns:
+        ymat: Transform matrix whose row i, when dotting with flattened image vector,
+            gives the coefficient for i-th real SH, where i = (l + 1) * l + m
+            Numpy array of shape ((l+1)^2, n_theta*n_phi)
+    """
+
+
 if __name__ == '__main__':
     # Unit tests
-    import cv2
 
+    import cv2
     im = cv2.imread('./toy-data/images/cameraman_grayscale.gif', cv2.IMREAD_GRAYSCALE)
-    import pdb; pdb.set_trace()
