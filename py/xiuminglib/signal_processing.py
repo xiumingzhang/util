@@ -10,6 +10,7 @@ from os.path import abspath
 import numpy as np
 from scipy.sparse import issparse
 from scipy.sparse.linalg import eigsh
+from scipy.special import sph_harm
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
@@ -94,22 +95,11 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     return pcvars, pcs, projs, data_mean
 
 
-def matrix_for_real_spherical_harmonics(l, n_theta, n_phi):
+def matrix_for_real_spherical_harmonics(l, n_theta):
     """
-    Generate transform matrix for discrete real spherical harmonic (SH) expansion
+    Generate transform matrix for discrete real spherical harmonic expansion
 
-    Args:
-        l: Band index
-            Natural number
-        n_theta: Number of discretization levels of polar angle, 0 =< theta < 180; this
-            will be the image height if the image is an equirectangular map (see below)
-            Natural number
-        n_phi: Number of discretization levels of azimuthal angle, 0 =< phi < 360; this
-            will be the image width if the image is an equirectangular map (see below)
-            Natural number
-
-        Spherical coordinates conventions (here) / equirectangular map conventions
-
+    Theta-phi convention (here) / latitude-longitude convention
                                                        ^ z (theta = 0 / lat = 90)
                                                        |
                                                        |
@@ -118,15 +108,52 @@ def matrix_for_real_spherical_harmonics(l, n_theta, n_phi):
                                                    ,'  |
         (theta = 90, phi = 0 / lat = 0, lng = 0) x     | (theta = 180 / lat = -90)
 
+    Args:
+        l: Up to which band (starting form 0); the number of harmonics is (l + 1) ** 2;
+            in other words, all harmonics within each band (-l <= m <= l) are used
+            Natural number
+        n_theta: Number of discretization levels of polar angle, 0 =< theta < 180; with the
+            same step size, n_phi will be twice as big, since 0 =< phi < 360
+            Natural number
+
     Returns:
-        ymat: Transform matrix whose row i, when dotting with flattened image vector,
-            gives the coefficient for i-th real SH, where i = (l + 1) * l + m
-            Numpy array of shape ((l+1)^2, n_theta*n_phi)
+        ymat: Transform matrix whose row i, when dotting with flattened image vector, gives the
+            coefficient for i-th harmonic, where i = (l + 1) * l + m; the spherical function to
+            transform (in the form of 2D image indexed by theta and phi) should be flattened in
+            row-major order: the row index varies the slowest, and the column index the quickest
+            Numpy array of shape ((l + 1) ** 2, 2 * n_theta ** 2)
     """
+    n_phi = 2 * n_theta
 
+    # Generate the l and m values for each matrix location
+    l_mat = np.zeros(((l + 1) ** 2, n_theta * n_phi))
+    m_mat = np.zeros(l_mat.shape)
+    i = 0
+    for curr_l in range(l + 1):
+        for curr_m in range(-curr_l, curr_l + 1):
+            l_mat[i, :] = curr_l * np.ones(l_mat.shape[1])
+            m_mat[i, :] = curr_m * np.ones(l_mat.shape[1])
+            i += 1
 
-if __name__ == '__main__':
-    # Unit tests
+    # Generate the theta and phi values for each matrix location
+    step_size = np.pi / n_theta
+    phis, thetas = np.meshgrid(np.linspace(0 + step_size, 2 * np.pi - step_size, num=n_phi, endpoint=True),
+                               np.linspace(0 + step_size, np.pi - step_size, num=n_theta, endpoint=True))
+    theta_mat = np.tile(thetas.ravel(), (l_mat.shape[0], 1))
+    phi_mat = np.tile(phis.ravel(), (l_mat.shape[0], 1))
 
-    import cv2
-    im = cv2.imread('./toy-data/images/cameraman_grayscale.gif', cv2.IMREAD_GRAYSCALE)
+    # Evaluate (complex) spherical harmonics at these locations
+    ymat_complex = sph_harm(m_mat, l_mat, phi_mat, theta_mat)
+
+    # Derive real spherical harmonics
+    ymat_complex_real = np.real(ymat_complex)
+    ymat_complex_imag = np.imag(ymat_complex)
+    ymat = np.zeros(ymat_complex_real.shape)
+    ind = m_mat > 0
+    ymat[ind] = np.sqrt(2) * ymat_complex_real[ind]
+    ind = m_mat == 0
+    ymat[ind] = ymat_complex_real[ind]
+    ind = m_mat < 0
+    ymat[ind] = np.sqrt(2) * ymat_complex_imag[ind]
+
+    return ymat
