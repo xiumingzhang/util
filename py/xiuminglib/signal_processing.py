@@ -19,9 +19,8 @@ thisfile = abspath(__file__)
 
 def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     """
-    Perform PCA on data via eigendecomposition of covariance matrix
-        To reconstruct data with top k PC's, do
-            pcs[:, :k].dot(projs[:k, :]) + np.tile(data_mean, (projs.shape[1], 1)).T
+    Perform principal component (PC) analysis on data via eigendecomposition of covariance matrix
+        See unit_tests() for example usages (incl. reconstructing data with top k PC's)
 
     Args:
         data_mat: Data matrix of n data points in the m-D space
@@ -95,6 +94,28 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     return pcvars, pcs, projs, data_mean
 
 
+def matrix_for_discrete_fourier_transform(n):
+    """
+    Generate transform matrix for discrete Fourier transform (DFT) W
+        To transform an image I, apply it twice: WIW
+        See unit_tests() for example usages
+
+    Args:
+        n: Signal length; this will be either image height or width if you are doing 2D DFT
+            to an image, i.e., wmat_h.dot(im).dot(wmat_w).
+            Natural number
+
+    Returns:
+        wmat: Transform matrix whose row i, when dotting with signal (column) vector, gives the
+            coefficient for i-th Fourier component, where i < n
+            Numpy complex array of shape (n, n)
+    """
+    col_ind, row_ind = np.meshgrid(range(n), range(n))
+    omega = np.exp(-2 * np.pi * 1j / n)
+    wmat = np.power(omega, col_ind * row_ind) / np.sqrt(n) # normalize so that unitary
+    return wmat
+
+
 def matrix_for_real_spherical_harmonics(l, n_theta):
     """
     Generate transform matrix for discrete real spherical harmonic expansion
@@ -117,10 +138,11 @@ def matrix_for_real_spherical_harmonics(l, n_theta):
             Natural number
 
     Returns:
-        ymat: Transform matrix whose row i, when dotting with flattened image vector, gives the
-            coefficient for i-th harmonic, where i = (l + 1) * l + m; the spherical function to
-            transform (in the form of 2D image indexed by theta and phi) should be flattened in
-            row-major order: the row index varies the slowest, and the column index the quickest
+        ymat: Transform matrix whose row i, when dotting with flattened image (column) vector,
+            gives the coefficient for i-th harmonic, where i = (l + 1) * l + m; the spherical
+            function to transform (in the form of 2D image indexed by theta and phi) should be
+            flattened in row-major order: the row index varies the slowest, and the column index
+            the quickest
             Numpy array of shape ((l + 1) ** 2, 2 * n_theta ** 2)
     """
     n_phi = 2 * n_theta
@@ -144,16 +166,59 @@ def matrix_for_real_spherical_harmonics(l, n_theta):
 
     # Evaluate (complex) spherical harmonics at these locations
     ymat_complex = sph_harm(m_mat, l_mat, phi_mat, theta_mat)
+    import pdb; pdb.set_trace()
 
     # Derive real spherical harmonics
     ymat_complex_real = np.real(ymat_complex)
     ymat_complex_imag = np.imag(ymat_complex)
     ymat = np.zeros(ymat_complex_real.shape)
     ind = m_mat > 0
-    ymat[ind] = np.sqrt(2) * ymat_complex_real[ind]
+    ymat[ind] = (-1) ** m_mat[ind] * np.sqrt(2) * ymat_complex_real[ind]
     ind = m_mat == 0
     ymat[ind] = ymat_complex_real[ind]
     ind = m_mat < 0
-    ymat[ind] = np.sqrt(2) * ymat_complex_imag[ind]
+    ymat[ind] = (-1) ** m_mat[ind] * np.sqrt(2) * ymat_complex_imag[ind]
+    import pdb; pdb.set_trace()
 
     return ymat
+
+
+def unit_tests(func_name):
+    # Unit tests and example usages
+
+    if func_name == 'pca':
+        pts = np.random.rand(5, 8) # 8 points in 5D
+
+        # Find all principal components
+        n_pcs = pts.shape[0] - 1
+        _, pcs, projs, data_mean = pca(pts, n_pcs=n_pcs)
+
+        # Reconstruct data with only the top two PC's
+        k = 2
+        pts_recon = pcs[:, :k].dot(projs[:k, :]) + np.tile(data_mean, (projs.shape[1], 1)).T
+        pdb.set_trace()
+
+    elif func_name == 'matrix_for_discrete_fourier_transform':
+        im = np.random.randint(0, 255, (8, 10))
+        h, w = im.shape
+
+        # Transform by my matrix
+        dft_mat_col = matrix_for_discrete_fourier_transform(h)
+        dft_mat_row = matrix_for_discrete_fourier_transform(w)
+        coeffs = dft_mat_col.dot(im).dot(dft_mat_row)
+
+        # Transform by numpy
+        coeffs_np = np.fft.fft2(im) / (np.sqrt(h) * np.sqrt(w))
+
+        logging.info("%s: max. magnitude difference: %e",
+                     func_name, np.abs(coeffs - coeffs_np).max())
+
+    else:
+        raise NotImplementedError("Unit tests for %s" % func_name)
+
+
+if __name__ == '__main__':
+    import pdb
+
+    func_to_test = 'matrix_for_real_spherical_harmonics'
+    unit_tests(func_to_test)
