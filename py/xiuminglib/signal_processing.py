@@ -119,6 +119,7 @@ def matrix_for_discrete_fourier_transform(n):
 def matrix_for_real_spherical_harmonics(l, n_theta):
     """
     Generate transform matrix for discrete real spherical harmonic expansion
+        See unit_tests() for example usages
 
     Theta-phi convention (here) / latitude-longitude convention
                                                        ^ z (theta = 0 / lat = 90)
@@ -212,6 +213,13 @@ def unit_tests(func_name):
 
         logging.info("%s: max. magnitude difference: %e",
                      func_name, np.abs(coeffs - coeffs_np).max())
+
+    elif func_name == 'matrix_for_real_spherical_harmonics':
+        n_steps_theta = 5
+        sph_func = np.random.randint(0, 255, (n_steps_theta, 2 * n_steps_theta))
+
+        l = 1
+        ymat = matrix_for_real_spherical_harmonics(l, n_steps_theta)
 
     else:
         raise NotImplementedError("Unit tests for %s" % func_name)
