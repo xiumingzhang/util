@@ -20,7 +20,7 @@ thisfile = abspath(__file__)
 def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     """
     Perform principal component (PC) analysis on data via eigendecomposition of covariance matrix
-        See unit_tests() for example usages (incl. reconstructing data with top k PC's)
+        See unit_test() for example usages (incl. reconstructing data with top k PC's)
 
     Args:
         data_mat: Data matrix of n data points in the m-D space
@@ -98,7 +98,7 @@ def matrix_for_discrete_fourier_transform(n):
     """
     Generate transform matrix for discrete Fourier transform (DFT) W
         To transform an image I, apply it twice: WIW
-        See unit_tests() for example usages
+        See unit_test() for example usages
 
     Args:
         n: Signal length; this will be either image height or width if you are doing 2D DFT
@@ -119,7 +119,7 @@ def matrix_for_discrete_fourier_transform(n):
 def matrix_for_real_spherical_harmonics(l, n_theta):
     """
     Generate transform matrix for discrete real spherical harmonic expansion
-        See unit_tests() for example usages
+        See unit_test() for example usages
 
     Theta-phi convention (here) / latitude-longitude convention
                                                        ^ z (theta = 0 / lat = 90)
@@ -184,7 +184,7 @@ def matrix_for_real_spherical_harmonics(l, n_theta):
     return ymat
 
 
-def unit_tests(func_name):
+def unit_test(func_name):
     # Unit tests and example usages
 
     if func_name == 'pca':
@@ -211,8 +211,8 @@ def unit_tests(func_name):
         # Transform by numpy
         coeffs_np = np.fft.fft2(im) / (np.sqrt(h) * np.sqrt(w))
 
-        logging.info("%s: max. magnitude difference: %e",
-                     func_name, np.abs(coeffs - coeffs_np).max())
+        import pdb; pdb.set_trace()
+        print("%s: max. magnitude difference: %e" % (func_name, np.abs(coeffs - coeffs_np).max()))
 
     elif func_name == 'matrix_for_real_spherical_harmonics':
         n_steps_theta = 5
@@ -229,4 +229,5 @@ if __name__ == '__main__':
     import pdb
 
     func_to_test = 'matrix_for_real_spherical_harmonics'
-    unit_tests(func_to_test)
+    func_to_test = 'matrix_for_discrete_fourier_transform'
+    unit_test(func_to_test)
