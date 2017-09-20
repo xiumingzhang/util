@@ -241,6 +241,8 @@ def unit_test(func_name):
 
     if func_name == 'pca':
         import cv2
+        # TODO
+
         pts = np.random.rand(5, 8) # 8 points in 5D
 
         # Find all principal components
@@ -270,29 +272,29 @@ def unit_test(func_name):
     elif func_name == 'matrix_for_real_spherical_harmonics':
         from visualization import matrix_as_heatmap
 
-        l = 4
+        ls = [10, 20]
         n_steps_theta = 500
-        r = 50
+        h, w = 30, 70
 
-        # Black background with a white hole in the center
+        # Black background with a white rectangle
         sph_func = np.zeros((n_steps_theta, 2 * n_steps_theta))
-        ind1, ind0 = np.meshgrid(range(2 * n_steps_theta), range(n_steps_theta))
-        center = (np.random.randint(0, n_steps_theta), np.random.randint(0, 2 * n_steps_theta))
-        mask = np.sqrt(np.power(ind0 - center[0], 2) + np.power(ind1 - center[1], 2)) < r
-        sph_func[mask] = 255
+        left_top_corner = (np.random.randint(0, n_steps_theta), np.random.randint(0, 2 * n_steps_theta))
+        sph_func[left_top_corner[0]:min(left_top_corner[0] + h, n_steps_theta),
+                 left_top_corner[1]:min(left_top_corner[1] + w, 2 * n_steps_theta)] = 255
         matrix_as_heatmap(sph_func, outpath='../../test-output/orig.png')
 
-        # Construct matrix for discrete real SH transform
-        ymat, weights = matrix_for_real_spherical_harmonics(l, n_steps_theta, _check_orthonormality=False)
+        for l in ls:
+            # Construct matrix for discrete real SH transform
+            ymat, weights = matrix_for_real_spherical_harmonics(l, n_steps_theta, _check_orthonormality=False)
 
-        # Analysis
-        sph_func_1d = sph_func.ravel()
-        coeffs = ymat.dot(np.multiply(weights, sph_func_1d))
+            # Analysis
+            sph_func_1d = sph_func.ravel()
+            coeffs = ymat.dot(np.multiply(weights, sph_func_1d))
 
-        # Synthesis
-        sph_func_1d_recon = ymat.T.dot(coeffs)
-        sph_func_recon = sph_func_1d_recon.reshape(sph_func.shape)
-        matrix_as_heatmap(sph_func_recon, outpath='../../test-output/recon.png')
+            # Synthesis
+            sph_func_1d_recon = ymat.T.dot(coeffs)
+            sph_func_recon = sph_func_1d_recon.reshape(sph_func.shape)
+            matrix_as_heatmap(sph_func_recon, outpath='../../test-output/recon_l%03d.png' % l)
         pdb.set_trace()
 
     else:
