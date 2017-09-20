@@ -118,7 +118,7 @@ def matrix_for_discrete_fourier_transform(n):
     return wmat
 
 
-def matrix_for_real_spherical_harmonics(l, n_theta, _debug=False):
+def matrix_for_real_spherical_harmonics(l, n_theta, _check_orthonormality=False):
     """
     Generate transform matrix for discrete real spherical harmonic (SH) expansion
         See unit_test() for example usages
@@ -139,7 +139,7 @@ def matrix_for_real_spherical_harmonics(l, n_theta, _debug=False):
         n_theta: Number of discretization levels of polar angle, 0 =< theta < 180; with the
             same step size, n_phi will be twice as big, since 0 =< phi < 360
             Natural number
-        _debug: Debug mode on or off
+        _check_orthonormality: Whether to check orthonormality or not
             Boolean
             Internal use only and optional; defaults to False
 
@@ -184,7 +184,7 @@ def matrix_for_real_spherical_harmonics(l, n_theta, _debug=False):
     areas_on_unit_sphere = 4 * np.pi * sin_theta / np.sum(sin_theta)
 
     # Verify orthonormality of SH's
-    if _debug:
+    if _check_orthonormality:
         print("Verifying Orthonormality of Complex SH Bases")
         print("(l1, m1) and (l2, m2):\treal\timag")
         for l1 in range(l + 1):
@@ -216,7 +216,7 @@ def matrix_for_real_spherical_harmonics(l, n_theta, _debug=False):
     ind = m_mat < 0
     ymat[ind] = (-1) ** m_mat[ind] * np.sqrt(2) * ymat_complex_imag[ind]
 
-    if _debug:
+    if _check_orthonormality:
         print("Verifying Orthonormality of Real SH Bases")
         print("(l1, m1) and (l2, m2):\tvalue")
         for l1 in range(l + 1):
@@ -240,6 +240,7 @@ def unit_test(func_name):
     # Unit tests and example usages
 
     if func_name == 'pca':
+        import cv2
         pts = np.random.rand(5, 8) # 8 points in 5D
 
         # Find all principal components
@@ -267,13 +268,22 @@ def unit_test(func_name):
         pdb.set_trace()
 
     elif func_name == 'matrix_for_real_spherical_harmonics':
-        n_steps_theta = 20
+        from visualization import matrix_as_heatmap
 
-        sph_func = np.random.randint(0, 255, (n_steps_theta, 2 * n_steps_theta))
+        l = 4
+        n_steps_theta = 500
+        r = 50
+
+        # Black background with a white hole in the center
+        sph_func = np.zeros((n_steps_theta, 2 * n_steps_theta))
+        ind1, ind0 = np.meshgrid(range(2 * n_steps_theta), range(n_steps_theta))
+        center = (np.random.randint(0, n_steps_theta), np.random.randint(0, 2 * n_steps_theta))
+        mask = np.sqrt(np.power(ind0 - center[0], 2) + np.power(ind1 - center[1], 2)) < r
+        sph_func[mask] = 255
+        matrix_as_heatmap(sph_func, outpath='../../test-output/orig.png')
 
         # Construct matrix for discrete real SH transform
-        l = 1
-        ymat, weights = matrix_for_real_spherical_harmonics(l, n_steps_theta, _debug=True)
+        ymat, weights = matrix_for_real_spherical_harmonics(l, n_steps_theta, _check_orthonormality=False)
 
         # Analysis
         sph_func_1d = sph_func.ravel()
@@ -282,6 +292,7 @@ def unit_test(func_name):
         # Synthesis
         sph_func_1d_recon = ymat.T.dot(coeffs)
         sph_func_recon = sph_func_1d_recon.reshape(sph_func.shape)
+        matrix_as_heatmap(sph_func_recon, outpath='../../test-output/recon.png')
         pdb.set_trace()
 
     else:
