@@ -111,14 +111,16 @@ def matrix_for_discrete_fourier_transform(n):
             Numpy complex array of shape (n, n)
     """
     col_ind, row_ind = np.meshgrid(range(n), range(n))
+
     omega = np.exp(-2 * np.pi * 1j / n)
     wmat = np.power(omega, col_ind * row_ind) / np.sqrt(n) # normalize so that unitary
+
     return wmat
 
 
-def matrix_for_real_spherical_harmonics(l, n_theta):
+def matrix_for_real_spherical_harmonics(l, n_theta, _debug=False):
     """
-    Generate transform matrix for discrete real spherical harmonic expansion
+    Generate transform matrix for discrete real spherical harmonic (SH) expansion
         See unit_test() for example usages
 
     Theta-phi convention (here) / latitude-longitude convention
@@ -137,6 +139,9 @@ def matrix_for_real_spherical_harmonics(l, n_theta):
         n_theta: Number of discretization levels of polar angle, 0 =< theta < 180; with the
             same step size, n_phi will be twice as big, since 0 =< phi < 360
             Natural number
+        _debug: Debug mode on or off
+            Boolean
+            Internal use only and optional; defaults to False
 
     Returns:
         ymat: Transform matrix whose row i, when dotting with flattened image (column) vector,
@@ -145,6 +150,11 @@ def matrix_for_real_spherical_harmonics(l, n_theta):
             flattened in row-major order: the row index varies the slowest, and the column index
             the quickest
             Numpy array of shape ((l + 1) ** 2, 2 * n_theta ** 2)
+        areas_on_unit_sphere: Area of the unit sphere covered by each sample point; this is
+            proportional to sine of colatitude, i.e., sin(theta), and has nothing to do with
+            phi; Used as weights for discrete summation to approximate continuous integration;
+            Flattened also in row-major order
+            Numpy array of length n_theta * (2 * n_theta)
     """
     n_phi = 2 * n_theta
 
@@ -165,11 +175,37 @@ def matrix_for_real_spherical_harmonics(l, n_theta):
     theta_mat = np.tile(thetas.ravel(), (l_mat.shape[0], 1))
     phi_mat = np.tile(phis.ravel(), (l_mat.shape[0], 1))
 
-    # Evaluate (complex) spherical harmonics at these locations
+    # Evaluate (complex) SH at these locations
     ymat_complex = sph_harm(m_mat, l_mat, phi_mat, theta_mat)
-    import pdb; pdb.set_trace()
 
-    # Derive real spherical harmonics
+    sin_theta = np.sin(thetas.ravel())
+    # Area on the unit sphere covered by each sample point, proportional to sin(theta)
+    # Used as weights for discrete summation, approximating continuous integration
+    areas_on_unit_sphere = 4 * np.pi * sin_theta / np.sum(sin_theta)
+
+    # Verify orthonormality of SH's
+    if _debug:
+        print("Verifying Orthonormality of Complex SH Bases")
+        print("(l1, m1) and (l2, m2):\treal\timag")
+        for l1 in range(l + 1):
+            for m1 in range(-l1, l1 + 1, 1):
+                i1 = l1 * (l1 + 1) + m1
+                y1 = ymat_complex[i1, :]
+                for l2 in range(l + 1):
+                    for m2 in range(-l2, l2 + 1, 1):
+                        i2 = l2 * (l2 + 1) + m2
+                        y2 = ymat_complex[i2, :]
+                        integral = np.conj(y1).dot(np.multiply(areas_on_unit_sphere, y2))
+                        integral_real = np.real(integral)
+                        integral_imag = np.imag(integral)
+                        if np.isclose(integral_real, 0):
+                            integral_real = 0
+                        if np.isclose(integral_imag, 0):
+                            integral_imag = 0
+                        print("(%d, %d) and (%d, %d):\t%f\t%f" %
+                              (l1, m1, l2, m2, integral_real, integral_imag))
+
+    # Derive real SH's
     ymat_complex_real = np.real(ymat_complex)
     ymat_complex_imag = np.imag(ymat_complex)
     ymat = np.zeros(ymat_complex_real.shape)
@@ -179,9 +215,25 @@ def matrix_for_real_spherical_harmonics(l, n_theta):
     ymat[ind] = ymat_complex_real[ind]
     ind = m_mat < 0
     ymat[ind] = (-1) ** m_mat[ind] * np.sqrt(2) * ymat_complex_imag[ind]
-    import pdb; pdb.set_trace()
 
-    return ymat
+    if _debug:
+        print("Verifying Orthonormality of Real SH Bases")
+        print("(l1, m1) and (l2, m2):\tvalue")
+        for l1 in range(l + 1):
+            for m1 in range(-l1, l1 + 1, 1):
+                i1 = l1 * (l1 + 1) + m1
+                y1 = ymat[i1, :]
+                for l2 in range(l + 1):
+                    for m2 in range(-l2, l2 + 1, 1):
+                        i2 = l2 * (l2 + 1) + m2
+                        y2 = ymat[i2, :]
+                        integral = y1.dot(np.multiply(areas_on_unit_sphere, y2))
+                        if np.isclose(integral, 0):
+                            integral = 0
+                        print("(%d, %d) and (%d, %d):\t%f" %
+                              (l1, m1, l2, m2, integral))
+
+    return ymat, areas_on_unit_sphere
 
 
 def unit_test(func_name):
@@ -211,15 +263,26 @@ def unit_test(func_name):
         # Transform by numpy
         coeffs_np = np.fft.fft2(im) / (np.sqrt(h) * np.sqrt(w))
 
-        import pdb; pdb.set_trace()
         print("%s: max. magnitude difference: %e" % (func_name, np.abs(coeffs - coeffs_np).max()))
+        pdb.set_trace()
 
     elif func_name == 'matrix_for_real_spherical_harmonics':
-        n_steps_theta = 5
+        n_steps_theta = 20
+
         sph_func = np.random.randint(0, 255, (n_steps_theta, 2 * n_steps_theta))
 
+        # Construct matrix for discrete real SH transform
         l = 1
-        ymat = matrix_for_real_spherical_harmonics(l, n_steps_theta)
+        ymat, weights = matrix_for_real_spherical_harmonics(l, n_steps_theta, _debug=True)
+
+        # Analysis
+        sph_func_1d = sph_func.ravel()
+        coeffs = ymat.dot(np.multiply(weights, sph_func_1d))
+
+        # Synthesis
+        sph_func_1d_recon = ymat.T.dot(coeffs)
+        sph_func_recon = sph_func_1d_recon.reshape(sph_func.shape)
+        pdb.set_trace()
 
     else:
         raise NotImplementedError("Unit tests for %s" % func_name)
@@ -229,5 +292,4 @@ if __name__ == '__main__':
     import pdb
 
     func_to_test = 'matrix_for_real_spherical_harmonics'
-    func_to_test = 'matrix_for_discrete_fourier_transform'
     unit_test(func_to_test)
