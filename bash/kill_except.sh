@@ -19,38 +19,38 @@ user=$(whoami)
 
 # CPU
 for id in "${cpu_list[@]}"; do
-    tokill=1
+    tokill=true
     # Check if it's in no-kill list
     for i in "${!isgpu[@]}"; do
         if [[ ${isgpu[i]} == 0 ]]; then # is a CPU
             if [[ ${dont_kill_ids[i]} == "$id" ]]; then
-                tokill=0
+                tokill=false
             fi
         fi
     done
     # Kill
-    if [[ ${tokill} == 1 ]]; then
-        printf -v m "vision%02d" "${id}"
-        ssh "${user}@${m}.csail.mit.edu" "pkill -9 -u $user" &
+    if $tokill; then
+        printf -v m "vision%02d" "$id"
+        ssh "$user@$m.csail.mit.edu" "pkill -9 -u $user" &
         echo "Kill signal sent to $m"
     fi
 done
 
 # GPU
 for id in "${gpu_list[@]}"; do
-    tokill=1
+    tokill=true
     # Check if it's in no-kill list
     for i in "${!isgpu[@]}"; do
         if [[ ${isgpu[i]} == 1 ]]; then # is a GPU
-            if [[ ${dont_kill_ids[i]} == "${id}" ]]; then
-                tokill=0
+            if [[ ${dont_kill_ids[i]} == "$id" ]]; then
+                tokill=false
             fi
         fi
     done
     # Kill
-    if [[ ${tokill} == 1 ]]; then
-        printf -v m "visiongpu%02d" "${id}"
-        ssh "${user}@${m}.csail.mit.edu" "pkill -9 -u $user" &
+    if $tokill; then
+        printf -v m "visiongpu%02d" "$id"
+        ssh "$user@$m.csail.mit.edu" "pkill -9 -u $user" &
         echo "Kill signal sent to $m"
     fi
 done

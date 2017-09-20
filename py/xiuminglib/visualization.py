@@ -145,6 +145,9 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
     """
     figsize = 14
 
+    if mat.ndim != 2:
+        raise ValueError("'mat' must have exactly 2 dimensions, but has %d" % mat.ndim)
+
     plt.figure(figsize=(figsize, figsize))
     ax = plt.gca()
 
