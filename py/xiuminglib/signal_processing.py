@@ -118,27 +118,45 @@ def matrix_for_discrete_fourier_transform(n):
     return wmat
 
 
-def matrix_for_real_spherical_harmonics(l, n_theta, _check_orthonormality=False):
+def matrix_for_real_spherical_harmonics(l, n_lat, coord_convention='colatitude-azimuth', _check_orthonormality=False):
     """
     Generate transform matrix for discrete real spherical harmonic (SH) expansion
         See unit_test() for example usages
-
-    Theta-phi convention (here) / latitude-longitude convention
-                                                       ^ z (theta = 0 / lat = 90)
-                                                       |
-                                                       |
-                      (phi = 270 / lng = -90) ---------+---------> y (phi = 90 / lng = 90)
-                                                     ,'|
-                                                   ,'  |
-        (theta = 90, phi = 0 / lat = 0, lng = 0) x     | (theta = 180 / lat = -90)
 
     Args:
         l: Up to which band (starting form 0); the number of harmonics is (l + 1) ** 2;
             in other words, all harmonics within each band (-l <= m <= l) are used
             Natural number
-        n_theta: Number of discretization levels of polar angle, 0 =< theta < 180; with the
-            same step size, n_phi will be twice as big, since 0 =< phi < 360
+        n_lat: Number of discretization levels of colatitude (colatitude-azimuth convention; [0, pi]) or
+            latitude (latitude-longitude convention; [-pi/2, pi/2]); with the same step size, n_azimuth
+            will be twice as big, since azimuth (colatitude-azimuth convention; [0, 2pi]) or latitude
+            (latitude-longitude convention; [-pi, pi]) spans 2pi
             Natural number
+        coord_convention: Coordinate system convention to use
+            'colatitude-azimuth' or 'latitude-longitude'
+            Optional; defaults to 'colatitude-azimuth'
+
+            Colatitude-azimuth convention / latitude-longitude convention
+
+                3D
+                                                               ^ z (colat = 0 / lat = pi/2)
+                                                               |
+                                                               |
+                          (azi = 3pi/2 / lng = -pi/2) ---------+---------> y (azi = pi/2 / lng = pi/2)
+                                                             ,'|
+                                                           ,'  |
+              (colat = pi/2, azi = 0 / lat = 0, lng = 0) x     | (colat = pi / lat = -pi/2)
+
+                2D
+                     (0, 0)                                  (pi/2, 0)
+                        +----------->  (0, 2pi)                  ^ lat
+                        |            azi                         |
+                        |                                        |
+                        |                        (0, -pi) -------+-------> (0, pi)
+                        v colat                                  |        lng
+                     (pi, 0)                                     |
+                                                            (-pi/2, 0)
+
         _check_orthonormality: Whether to check orthonormality or not
             Boolean
             Internal use only and optional; defaults to False
@@ -146,20 +164,18 @@ def matrix_for_real_spherical_harmonics(l, n_theta, _check_orthonormality=False)
     Returns:
         ymat: Transform matrix whose row i, when dotting with flattened image (column) vector,
             gives the coefficient for i-th harmonic, where i = (l + 1) * l + m; the spherical
-            function to transform (in the form of 2D image indexed by theta and phi) should be
+            function to transform (in the form of 2D image indexed by two angles) should be
             flattened in row-major order: the row index varies the slowest, and the column index
             the quickest
-            Numpy array of shape ((l + 1) ** 2, 2 * n_theta ** 2)
+            Numpy array of shape ((l + 1) ** 2, 2 * n_lat ** 2)
         areas_on_unit_sphere: Area of the unit sphere covered by each sample point; this is
-            proportional to sine of colatitude, i.e., sin(theta), and has nothing to do with
-            phi; Used as weights for discrete summation to approximate continuous integration;
+            proportional to sine of colatitude and has nothing to do with azimuth/longitude;
+            Used as weights for discrete summation to approximate continuous integration;
             Flattened also in row-major order
-            Numpy array of length n_theta * (2 * n_theta)
+            Numpy array of length n_lat * (2 * n_lat)
     """
-    n_phi = 2 * n_theta
-
     # Generate the l and m values for each matrix location
-    l_mat = np.zeros(((l + 1) ** 2, n_theta * n_phi))
+    l_mat = np.zeros(((l + 1) ** 2, n_lat * 2 * n_lat))
     m_mat = np.zeros(l_mat.shape)
     i = 0
     for curr_l in range(l + 1):
@@ -168,20 +184,31 @@ def matrix_for_real_spherical_harmonics(l, n_theta, _check_orthonormality=False)
             m_mat[i, :] = curr_m * np.ones(l_mat.shape[1])
             i += 1
 
-    # Generate the theta and phi values for each matrix location
-    step_size = np.pi / n_theta
-    phis, thetas = np.meshgrid(np.linspace(0 + step_size, 2 * np.pi - step_size, num=n_phi, endpoint=True),
-                               np.linspace(0 + step_size, np.pi - step_size, num=n_theta, endpoint=True))
-    theta_mat = np.tile(thetas.ravel(), (l_mat.shape[0], 1))
-    phi_mat = np.tile(phis.ravel(), (l_mat.shape[0], 1))
+    # Generate the two angles for each matrix location
+    step_size = np.pi / n_lat
+    if coord_convention == 'colatitude-azimuth':
+        azis, colats = np.meshgrid(
+            np.linspace(0 + step_size, 2 * np.pi - step_size, num=2 * n_lat, endpoint=True),
+            np.linspace(0 + step_size, np.pi - step_size, num=n_lat, endpoint=True))
+    elif coord_convention == 'latitude-longitude':
+        lngs, lats = np.meshgrid(
+            np.linspace(-np.pi + step_size, np.pi - step_size, num=2 * n_lat, endpoint=True),
+            np.linspace(np.pi / 2 - step_size, -np.pi / 2 + step_size, num=n_lat, endpoint=True))
+        colats = np.pi / 2 - lats
+        azis = lngs
+        azis[azis < 0] += 2 * np.pi
+    else:
+        raise NotImplementedError(coord_convention)
 
     # Evaluate (complex) SH at these locations
-    ymat_complex = sph_harm(m_mat, l_mat, phi_mat, theta_mat)
+    colat_mat = np.tile(colats.ravel(), (l_mat.shape[0], 1))
+    azi_mat = np.tile(azis.ravel(), (l_mat.shape[0], 1))
+    ymat_complex = sph_harm(m_mat, l_mat, azi_mat, colat_mat)
 
-    sin_theta = np.sin(thetas.ravel())
-    # Area on the unit sphere covered by each sample point, proportional to sin(theta)
+    sin_colat = np.sin(colats.ravel())
+    # Area on the unit sphere covered by each sample point, proportional to sin(colat)
     # Used as weights for discrete summation, approximating continuous integration
-    areas_on_unit_sphere = 4 * np.pi * sin_theta / np.sum(sin_theta)
+    areas_on_unit_sphere = 4 * np.pi * sin_colat / np.sum(sin_colat)
 
     # Verify orthonormality of SH's
     if _check_orthonormality:
