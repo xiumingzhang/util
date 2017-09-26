@@ -24,7 +24,7 @@ def binarize(im, threshold=None):
 
     Args:
         im: Image to binarize
-            Numpy array of any interger type (uint8, uint16, etc.)
+            Numpy array of any integer type (uint8, uint16, etc.)
                 - If h-by-w-3, convert to grayscale and treat as h-by-w
         threshold: Threshold for binarization
             Float

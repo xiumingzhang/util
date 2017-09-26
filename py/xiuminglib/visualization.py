@@ -16,9 +16,25 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cv2
 
 
-def plot_wrapper(*args, figtitle=None, grid=True, xlabel=None, ylabel=None, outpath='./plot.png', **kwargs):
+def plot_wrapper(*args,
+                 figtitle=None,
+                 figtitle_fontsize=20,
+                 xlabel=None,
+                 xlabel_fontsize=20,
+                 ylabel=None,
+                 ylabel_fontsize=20,
+                 xticks=None,
+                 xticks_fontsize=10,
+                 xticks_rotation=0,
+                 yticks=None,
+                 yticks_fontsize=10,
+                 yticks_rotation=0,
+                 grid=True,
+                 outpath='./plot.png',
+                 **kwargs):
     """
-    Convinience wrapper for matplotlib.pyplot.plot()
+    Convinience wrapper for matplotlib.pyplot.plot() that saves plots directly to the disk
+        without displaying
 
     Args:
         *args, **kwargs: Positional and/or keyword parameters that plot() takes
@@ -26,12 +42,21 @@ def plot_wrapper(*args, figtitle=None, grid=True, xlabel=None, ylabel=None, outp
         figtitle: Figure title
             String
             Optional; defaults to None (no title)
-        grid: Whether to draw grid
-            Boolean
-            Optional; defaults to True
         xlabel, ylabel: Label of x- or y-axis
             String
             Optional; defaults to None (no label)
+        xticks, yticks: Tick values of x- or y-axis
+            Array_like
+            Optional; defaults to None (auto)
+        *_fontsize: Font size
+            Positive integer
+            Optional
+        *_rotation: Rotation in degrees
+            Float
+            Optional; defaults to 0
+        grid: Whether to draw grid
+            Boolean
+            Optional; defaults to True
         outpath: Path to which the visualization is saved
             String
             Optional; defaults to './plot.png'
@@ -43,13 +68,27 @@ def plot_wrapper(*args, figtitle=None, grid=True, xlabel=None, ylabel=None, outp
 
     # Set title
     if figtitle is not None:
-        ax.set_title(figtitle)
+        ax.set_title(figtitle, fontsize=figtitle_fontsize)
 
     plt.plot(*args, **kwargs)
 
     plt.grid(grid)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+
+    # Axis labels
+    if xlabel is not None:
+        plt.xlabel(xlabel, fontsize=xlabel_fontsize)
+    if ylabel is not None:
+        plt.ylabel(ylabel, fontsize=ylabel_fontsize)
+
+    # Axis ticks
+    if xticks is None:
+        plt.xticks(fontsize=xticks_fontsize, rotation=xticks_rotation)
+    else:
+        plt.xticks(xticks, fontsize=xticks_fontsize, rotation=xticks_rotation)
+    if yticks is None:
+        plt.yticks(fontsize=yticks_fontsize, rotation=yticks_rotation)
+    else:
+        plt.yticks(yticks, fontsize=yticks_fontsize, rotation=yticks_rotation)
 
     # Make directory, if necessary
     outdir = dirname(outpath)
