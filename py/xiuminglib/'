@@ -16,43 +16,31 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cv2
 
 
-def pyplot_wrapper(*args,
-                   func='plot',
-                   labels=None,
-                   legend_fontsize=20,
-                   legend_loc=0,
-                   figsize=(14, 14),
-                   figtitle=None,
-                   figtitle_fontsize=20,
-                   xlabel=None,
-                   xlabel_fontsize=20,
-                   ylabel=None,
-                   ylabel_fontsize=20,
-                   xticks=None,
-                   xticks_fontsize=10,
-                   xticks_rotation=0,
-                   yticks=None,
-                   yticks_fontsize=10,
-                   yticks_rotation=0,
-                   grid=True,
-                   outpath='./plot.png',
-                   **kwargs):
+def plot_wrapper(*args,
+                 labels=None,
+                 figsize=(14, 14),
+                 figtitle=None,
+                 figtitle_fontsize=20,
+                 xlabel=None,
+                 xlabel_fontsize=20,
+                 ylabel=None,
+                 ylabel_fontsize=20,
+                 xticks=None,
+                 xticks_fontsize=10,
+                 xticks_rotation=0,
+                 yticks=None,
+                 yticks_fontsize=10,
+                 yticks_rotation=0,
+                 grid=True,
+                 outpath='./plot.png',
+                 **kwargs):
     """
-    Convinience wrapper for matplotlib.pyplot functions that saves plots directly to the disk
+    Convinience wrapper for matplotlib.pyplot.plot() that saves plots directly to the disk
         without displaying
 
     Args:
-        *args, **kwargs: Positional and/or keyword parameters that the wrapped function takes
-            See documentation for matplotlib.pyplot
-        func: Which pyplot function to invoke
-            'plot' or 'hist'
-            Optional; defaults to 'plot'
-        labels: Labels for plot objects, to appear in the legend
-            List of strings or None (no label for this object)
-            Optional; defaults to None (no legend)
-        legend_loc: Legend location; effective only when labels is not None
-            'best', 'upper right', 'lower left', 'right', 'center left', 'lower center', 'upper center', 'center, etc.
-            Optional; defaults to 'best'
+        *args, **kwargs: Positional and/or keyword parameters that plot() takes
+            See documentation for matplotlib.pyplot.plot()
         figsize: Width and height of the figure in inches
             Tuple of two positive floats
             Optional; defaults to (14, 14)
@@ -85,21 +73,15 @@ def pyplot_wrapper(*args,
     if figtitle is not None:
         ax.set_title(figtitle, fontsize=figtitle_fontsize)
 
-    if func == 'plot':
-        plot_objs = plt.plot(*args, **kwargs)
-    elif func == 'hist':
-        plot_objs = plt.hist(*args, **kwargs)
-    else:
-        raise NotImplementedError(func)
+    plot_objs = plt.plot(*args, **kwargs)
 
     # Legend
     if labels is not None:
         n_plot_objs = len(plot_objs)
         assert (len(labels) == n_plot_objs), \
             "Number of labels must equal number of plot objects; use None for object without a label"
-        for i in range(n_plot_objs):
-            plot_objs[i].set_label(labels[i])
-        plt.legend(fontsize=legend_fontsize, loc=legend_loc)
+        for i in range le
+        plt.legend()
 
     # Grid
     plt.grid(grid)
