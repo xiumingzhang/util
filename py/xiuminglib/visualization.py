@@ -45,7 +45,7 @@ def pyplot_wrapper(*args,
         *args, **kwargs: Positional and/or keyword parameters that the wrapped function takes
             See documentation for matplotlib.pyplot
         func: Which pyplot function to invoke
-            'plot' or 'hist'
+            'plot', 'hist', or 'bar'
             Optional; defaults to 'plot'
         labels: Labels for plot objects, to appear in the legend
             List of strings or None (no label for this object)
@@ -86,11 +86,15 @@ def pyplot_wrapper(*args,
         ax.set_title(figtitle, fontsize=figtitle_fontsize)
 
     if func == 'plot':
-        plot_objs = plt.plot(*args, **kwargs)
+        func = plt.plot
     elif func == 'hist':
-        plot_objs = plt.hist(*args, **kwargs)
+        func = plt.hist
+    elif func == 'bar':
+        func = plt.bar
     else:
         raise NotImplementedError(func)
+
+    plot_objs = func(*args, **kwargs)
 
     # Legend
     if labels is not None:
