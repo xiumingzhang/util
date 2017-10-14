@@ -208,7 +208,9 @@ def moeller_trumbore(ray_orig, ray_dir, tri_v0, tri_v1, tri_v2):
 
 
 if __name__ == '__main__':
-    # cartesian2spherical
+    # Unit tests
+
+    # cartesian2spherical() and spherical2cartesian()
     pts_car = np.array([[-1, 2, 3], [4, -5, 6], [3, 5, -8], [-2, -5, 2], [4, -2, -23]])
     print(pts_car)
     pts_sph = cartesian2spherical(pts_car)
