@@ -1,8 +1,7 @@
-.*
 *.pyc
+*.swp
+*.m~
+
 **/__pycache__
 **/external
 **/test-output
-
-!.gitignore
-!.editorconfig
