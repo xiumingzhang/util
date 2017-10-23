@@ -8,3 +8,6 @@ axis equal;
 xlabel('x');
 ylabel('y');
 zlabel('z');
+
+view(-90, 0);
+title('Looking Towards +x');
