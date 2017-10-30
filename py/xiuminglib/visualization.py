@@ -127,7 +127,7 @@ def pyplot_wrapper(*args,
     # Make directory, if necessary
     outdir = dirname(outpath)
     if not exists(outdir):
-        makedirs(outdir)
+        makedirs(outdir, exist_ok=True)
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
@@ -192,7 +192,7 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     # Make directory, if necessary
     outdir = dirname(outpath)
     if not exists(outdir):
-        makedirs(outdir)
+        makedirs(outdir, exist_ok=True)
 
     # Write to disk
     cv2.imwrite(outpath, im)
@@ -249,7 +249,7 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
     # Make directory, if necessary
     outdir = dirname(outpath)
     if not exists(outdir):
-        makedirs(outdir)
+        makedirs(outdir, exist_ok=True)
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
@@ -348,7 +348,7 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=N
     # Make directory, if necessary
     outdir = dirname(outpath)
     if not exists(outdir):
-        makedirs(outdir)
+        makedirs(outdir, exist_ok=True)
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
