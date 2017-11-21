@@ -11,7 +11,7 @@ regex=$1
 fps=$2
 outpath=$3
 
-ffmpeg -framerate "$fps" -pattern_type glob -i "$regex" -vf scale=-2:720 -pix_fmt yuv420p "$outpath"
+ffmpeg -framerate "$fps" -pattern_type glob -i "$regex" -vf scale=-2:720 -pix_fmt yuv420p "$outpath" -y
 
 echo 'Successful!'
 echo -e "All images matching $regex are compiled into $outpath"
