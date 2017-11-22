@@ -13,6 +13,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.mplot3d import Axes3D
 import cv2
 
 
@@ -68,7 +69,7 @@ def pyplot_wrapper(*args,
         *_fontsize: Font size
             Positive integer
             Optional
-        *_rotation: Rotation in degrees
+        *_rotation: Tick rotation in degrees
             Float
             Optional; defaults to 0
         grid: Whether to draw grid
@@ -352,5 +353,138 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=N
 
     # Save plot
     plt.savefig(outpath, bbox_inches='tight')
+
+    plt.close('all')
+
+
+def axes3d_wrapper(
+        *args,
+        func='scatter',
+        labels=None,
+        legend_fontsize=20,
+        legend_loc=0,
+        figsize=(14, 14),
+        figtitle=None,
+        figtitle_fontsize=20,
+        xlabel=None,
+        xlabel_fontsize=20,
+        ylabel=None,
+        ylabel_fontsize=20,
+        zlabel=None,
+        zlabel_fontsize=20,
+        xticks=None,
+        xticks_fontsize=10,
+        xticks_rotation=0,
+        yticks=None,
+        yticks_fontsize=10,
+        yticks_rotation=0,
+        zticks=None,
+        zticks_fontsize=10,
+        zticks_rotation=0,
+        grid=True,
+        views=None,
+        outpath='./plot.png',
+        **kwargs):
+    """
+    Convinience wrapper for mpl_toolkits.mplot3d.Axes3D functions that saves plots directly to the disk
+        without displaying
+
+    Args:
+        *args, **kwargs: Positional and/or keyword parameters that the wrapped function takes
+            See documentation for mpl_toolkits.mplot3d.Axes3D
+        func: Which pyplot function to invoke
+            'scatter'
+            Optional; defaults to 'scatter'
+        labels: Labels for plot objects, to appear in the legend
+            List of strings or None (no label for this object)
+            Optional; defaults to None (no legend)
+        legend_loc: Legend location; effective only when labels is not None
+            'best', 'upper right', 'lower left', 'right', 'center left',
+                'lower center', 'upper center', 'center, etc.
+            Optional; defaults to 'best'
+        figsize: Width and height of the figure in inches
+            Tuple of two positive floats
+            Optional; defaults to (14, 14)
+        figtitle: Figure title
+            String
+            Optional; defaults to None (no title)
+        xlabel, ylabel, zlabel: Labels of x-, y- or z-axis
+            String
+            Optional; defaults to None (no label)
+        xticks, yticks, zticks: Tick values of x-, y- or z-axis
+            Array_like
+            Optional; defaults to None (auto)
+        *_fontsize: Font size
+            Positive integer
+            Optional
+        *_rotation: Tick rotation in degrees
+            Float
+            Optional; defaults to 0
+        grid: Whether to draw grid
+            Boolean
+            Optional; defaults to True
+        views: List of elevation-azimuth angle pairs (in degree)
+            List of 2-tuples of floats
+            Optional; defaults to None
+        outpath: Path to which the visualization is saved
+            String
+            Optional; defaults to './plot.png'
+    """
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Set title
+    if figtitle is not None:
+        ax.set_title(figtitle, fontsize=figtitle_fontsize)
+
+    if func == 'scatter':
+        func = ax.scatter
+    else:
+        raise NotImplementedError(func)
+
+    plot_objs = func(*args, **kwargs)
+
+    # Legend
+    if labels is not None:
+        n_plot_objs = len(plot_objs)
+        assert (len(labels) == n_plot_objs), \
+            "Number of labels must equal number of plot objects; use None for object without a label"
+        for i in range(n_plot_objs):
+            plot_objs[i].set_label(labels[i])
+        plt.legend(fontsize=legend_fontsize, loc=legend_loc)
+
+    # Grid
+    plt.grid(grid)
+
+    # Axis labels
+    if xlabel is not None:
+        ax.set_xlabel(xlabel, fontsize=xlabel_fontsize)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel, fontsize=ylabel_fontsize)
+    if zlabel is not None:
+        ax.set_zlabel(zlabel, fontsize=zlabel_fontsize)
+
+    # Axis ticks
+    if xticks is not None:
+        ax.set_xticklabels(xticks, fontsize=xticks_fontsize, rotation=xticks_rotation)
+    if yticks is not None:
+        ax.set_yticklabels(yticks, fontsize=yticks_fontsize, rotation=yticks_rotation)
+    if zticks is not None:
+        ax.set_zticklabels(zticks, fontsize=zticks_fontsize, rotation=zticks_rotation)
+
+    # Make directory, if necessary
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir, exist_ok=True)
+
+    # Save plot
+    if views is None:
+        plt.savefig(outpath, bbox_inches='tight')
+    else:
+        for elev, azim in views:
+            ax.view_init(elev, azim)
+            plt.draw()
+            plt.savefig(outpath.replace('.png', '_elev%d_azim%d.png' % (elev, azim)),
+                        bbox_inches='tight')
 
     plt.close('all')
