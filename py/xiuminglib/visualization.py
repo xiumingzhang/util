@@ -7,13 +7,14 @@ June 2017
 
 from os import makedirs
 from os.path import dirname, exists
+from warnings import warn
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import Axes3D # noqa; pylint: disable=unused-import
 import cv2
 
 
@@ -142,7 +143,7 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
 
     Args:
         im: Image to scatter on
-            h-by-w (grayscale) or h-by-w-by-3 (RGB) numpy array
+            h-by-w (grayscale) or h-by-w-by-3 (RGB) numpy array of type np.uint8 or np.uint16
         pts: Coordinates of the scatter point(s)
             +-----------> dim1
             |
@@ -163,14 +164,15 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     thickness = -1 # for filled circles
 
     # Standardize inputs
-
     if im.ndim == 2: # grayscale
-        im = np.stack((im, im, im), axis=2) # to BGR
-
+        im = np.dstack((im, im, im)) # to BGR
     pts = np.array(pts)
     if pts.ndim == 1:
         pts = pts.reshape(-1, 2)
     n_pts = pts.shape[0]
+
+    if im.dtype != 'uint8' and im.dtype != 'uint16':
+        warn("Input image type may cause obscure cv2 errors")
 
     if isinstance(size, int):
         size = np.array([size] * n_pts)
