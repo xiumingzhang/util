@@ -267,9 +267,6 @@ def unit_test(func_name):
     # Unit tests and example usages
 
     if func_name == 'pca':
-        import cv2
-        # TODO
-
         pts = np.random.rand(5, 8) # 8 points in 5D
 
         # Find all principal components
