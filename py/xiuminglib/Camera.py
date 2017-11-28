@@ -5,6 +5,8 @@ Xiuming Zhang, MIT CSAIL
 November 2017
 """
 
+# TODO: change to class
+
 import logging
 from os.path import abspath
 import numpy as np
