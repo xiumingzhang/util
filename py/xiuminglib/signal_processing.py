@@ -17,6 +17,39 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
+def smooth_1d(arr, win_size):
+    """
+    Smooth 1D signal
+
+    Args:
+        arr: 1D signal to smooth
+            1D array_like of floats
+        win_size: Size of the smoothing window
+            Odd natural number
+
+    Returns:
+        arr_smooth: Smoothed 1D signal
+            1D numpy array of floats
+    """
+    assert np.mod(win_size, 2) == 1, "Even window size provided"
+    arr = np.array(arr).ravel()
+
+    # Generate kernel
+    kernel = np.array([2 ** x if x < 0 else 2 ** -x
+                       for x in range(-int(win_size / 2), int(win_size / 2) + 1)])
+    kernel /= sum(kernel)
+    n = (win_size - 1) // 2
+
+    arr_pad = np.hstack((arr[0] * np.ones(n), arr, arr[-1] * np.ones(n)))
+    arr_smooth = np.convolve(arr_pad, kernel, 'valid')
+
+    # Restore original values of the head and tail
+    arr_smooth[0] = arr[0]
+    arr_smooth[-1] = arr[-1]
+
+    return arr_smooth
+
+
 def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
     """
     Perform principal component (PC) analysis on data via eigendecomposition of covariance matrix
