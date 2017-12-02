@@ -1,5 +1,5 @@
 """
-Classes of Trackers
+Tracker classes
 
 Xiuming Zhang, MIT CSAIL
 November 2017
@@ -70,7 +70,6 @@ class LucasKanadeTracker:
                 self.lk_params[key] = val
 
         self.backtrack_thres = backtrack_thres
-        self._tracks_raw = []
         self.tracks = []
         self.can_backtrack = []
         self.is_lost = []
@@ -106,7 +105,6 @@ class LucasKanadeTracker:
                 pts = constrain(pts, locals())
                 p0 = self._my2klt(pts)
 
-            self._tracks_raw.append(self._klt2my(p1))
             self.tracks.append(self._klt2my(p0))
             self.can_backtrack.append(can_backtrack)
             self.is_lost.append(is_lost)
@@ -114,9 +112,6 @@ class LucasKanadeTracker:
     def vis(self, out_dir, marker_bgr=(0, 0, 255)):
         for fi in range(0, len(self.frames) - 1):
             im = self.frames[fi + 1]
-            pts = self._tracks_raw[fi]
-            xvis.scatter_on_image(im, pts, size=6, bgr=marker_bgr,
-                                  outpath=join(out_dir, '%04d_raw.png' % (fi + 1)))
             pts = self.tracks[fi]
             xvis.scatter_on_image(im, pts, size=6, bgr=marker_bgr,
                                   outpath=join(out_dir, '%04d.png' % (fi + 1)))
