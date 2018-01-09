@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def smooth_1d(arr, win_size):
+def smooth_1d(arr, win_size, kernel_type='half'):
     """
     Smooth 1D signal
 
@@ -26,6 +26,10 @@ def smooth_1d(arr, win_size):
             1D array_like of floats
         win_size: Size of the smoothing window
             Odd natural number
+        kernel_type: Kernel type
+            'half' (e.g., normalized [2^-2, 2^-1, 2^0, 2^-1, 2^-2]) or
+            'equal' (e.g., normalized [1, 1, 1, 1, 1]
+            Optional (defaults to 'half')
 
     Returns:
         arr_smooth: Smoothed 1D signal
@@ -35,8 +39,13 @@ def smooth_1d(arr, win_size):
     arr = np.array(arr).ravel()
 
     # Generate kernel
-    kernel = np.array([2 ** x if x < 0 else 2 ** -x
-                       for x in range(-int(win_size / 2), int(win_size / 2) + 1)])
+    if kernel_type == 'half':
+        kernel = np.array([2 ** x if x < 0 else 2 ** -x
+                           for x in range(-int(win_size / 2), int(win_size / 2) + 1)])
+    elif kernel_type == 'equal':
+        kernel = np.ones(win_size)
+    else:
+        raise ValueError("Unidentified kernel type")
     kernel /= sum(kernel)
     n = (win_size - 1) // 2
 
