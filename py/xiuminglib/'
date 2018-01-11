@@ -76,7 +76,7 @@ def pyplot_wrapper(*args,
             Float
             Optional; defaults to 0
         xlim, ylim: Start and end values for x- and y-axes
-            List of two float(s) or None(s) (auto)
+            List of two floats
             Optional; defaults to None (auto)
         grid: Whether to draw grid
             Boolean
@@ -115,11 +115,8 @@ def pyplot_wrapper(*args,
     # Grid
     plt.grid(grid)
 
-    # Axis limits
     if xlim is not None:
         ax.set_xlim(left=xlim[0], right=xlim[1])
-    if ylim is not None:
-        ax.set_ylim(left=ylim[0], right=ylim[1])
 
     # Axis labels
     if xlabel is not None:
