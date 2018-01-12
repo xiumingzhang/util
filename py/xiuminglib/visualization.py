@@ -396,6 +396,7 @@ def axes3d_wrapper(
         zticks_rotation=0,
         grid=True,
         views=None,
+        equal_axes=False,
         outpath='./plot.png',
         **kwargs):
     """
@@ -439,6 +440,9 @@ def axes3d_wrapper(
         views: List of elevation-azimuth angle pairs (in degree)
             List of 2-tuples of floats
             Optional; defaults to None
+        equal_axes: Whether to have the same scale for all axes
+            Boolean
+            Optional; defaults to False
         outpath: Path to which the visualization is saved
             String
             Optional; defaults to './plot.png'
@@ -452,6 +456,8 @@ def axes3d_wrapper(
 
     if func == 'scatter':
         func = ax.scatter
+    elif func == 'plot':
+        func = ax.plot
     else:
         raise NotImplementedError(func)
 
@@ -478,17 +484,44 @@ def axes3d_wrapper(
         ax.set_zlabel(zlabel, fontsize=zlabel_fontsize)
 
     # Axis ticks
-    if xticks is not None:
+    if xticks is None:
+        ax.set_xticklabels(ax.get_xticks(), fontsize=xticks_fontsize, rotation=xticks_rotation)
+    else:
         ax.set_xticklabels(xticks, fontsize=xticks_fontsize, rotation=xticks_rotation)
-    if yticks is not None:
+    if yticks is None:
+        ax.set_yticklabels(ax.get_yticks(), fontsize=yticks_fontsize, rotation=yticks_rotation)
+    else:
         ax.set_yticklabels(yticks, fontsize=yticks_fontsize, rotation=yticks_rotation)
-    if zticks is not None:
+    if zticks is None:
+        ax.set_zticklabels(ax.get_zticks(), fontsize=zticks_fontsize, rotation=zticks_rotation)
+    else:
         ax.set_zticklabels(zticks, fontsize=zticks_fontsize, rotation=zticks_rotation)
 
     # Make directory, if necessary
     outdir = dirname(outpath)
     if not exists(outdir):
         makedirs(outdir, exist_ok=True)
+
+    if equal_axes:
+        # plt.axis('equal') # not working, hence the hack of creating a cubic bounding box
+        x_data, y_data, z_data = np.array([]), np.array([]), np.array([])
+        warn("Assuming args are x1, y1, z1, x2, y2, z2, ...")
+        for i in range(0, len(args), 3):
+            x_data = np.hstack((x_data, args[i]))
+            y_data = np.hstack((y_data, args[i + 1]))
+            z_data = np.hstack((z_data, args[i + 2]))
+        max_range = np.array([
+            x_data.max() - x_data.min(),
+            y_data.max() - y_data.min(),
+            z_data.max() - z_data.min()]).max()
+        xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() \
+            + 0.5 * (x_data.max() + x_data.min())
+        yb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][1].flatten() \
+            + 0.5 * (y_data.max() + y_data.min())
+        zb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][2].flatten() \
+            + 0.5 * (z_data.max() + z_data.min())
+        for xb_, yb_, zb_ in zip(xb, yb, zb):
+            ax.plot([xb_], [yb_], [zb_], 'w')
 
     # Save plot
     if views is None:
