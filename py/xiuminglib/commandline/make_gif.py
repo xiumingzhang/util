@@ -23,7 +23,8 @@ parser.add_argument('input', metavar='i', type=str, nargs='+',
                     help="input image-text pairs, e.g., im.png,'foo bar' or im.png")
 parser.add_argument('outpath', metavar='o', type=str, help="output GIF")
 parser.add_argument('--cropbox', metavar='b', type=str, default='0,0,-1,-1',
-                    help="top left corner, height and width of the cropping rectangle; default: no cropping")
+                    help=("top left corner, height and width of the cropping rectangle; "
+                          "use -1 for \"to the end\"; default: 0,0,-1,-1 (no cropping)"))
 parser.add_argument('--delay', metavar='d', type=int, default=200, help="delay parameter; default: 200")
 parser.add_argument('--width', metavar='w', type=int, default=1080, help="output GIF width; default: 1080")
 parser.add_argument('--fontscale', metavar='s', type=int, default=4, help="font scale; default: 4")
@@ -59,8 +60,12 @@ for impath_text in pairs:
     im = cv2.imread(impath, cv2.IMREAD_UNCHANGED)
     assert im is not None, "%s not found" % impath
     if cropbox != (0, 0, -1, -1):
-        im = im[cropbox[0]:(cropbox[0] + cropbox[2]),
-                cropbox[1]:(cropbox[1] + cropbox[3]), ...]
+        y_min, x_min, h, w = cropbox
+        if h == -1:
+            h = im.shape[0] - y_min
+        if w == -1:
+            w = im.shape[1] - x_min
+        im = im[y_min:(y_min + h), x_min:(x_min + w), ...]
     im = cv2.resize(im, (gif_width, int(im.shape[0] * gif_width / im.shape[1])))
 
     # Put text
