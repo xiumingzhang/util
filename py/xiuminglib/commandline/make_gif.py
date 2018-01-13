@@ -22,6 +22,8 @@ parser = ArgumentParser(description="Make annotated GIF from image-text pairs")
 parser.add_argument('input', metavar='i', type=str, nargs='+',
                     help="input image-text pairs, e.g., im.png,'foo bar' or im.png")
 parser.add_argument('outpath', metavar='o', type=str, help="output GIF")
+parser.add_argument('--cropbox', metavar='b', type=str, default='0,0,-1,-1',
+                    help="top left corner, height and width of the cropping rectangle; default: no cropping")
 parser.add_argument('--delay', metavar='d', type=int, default=200, help="delay parameter; default: 200")
 parser.add_argument('--width', metavar='w', type=int, default=1080, help="output GIF width; default: 1080")
 parser.add_argument('--fontscale', metavar='s', type=int, default=4, help="font scale; default: 4")
@@ -32,6 +34,7 @@ parser.add_argument('--anchor', metavar='a', type=str, default='50,50',
 args = parser.parse_args()
 pairs = args.input
 outpath = abspath(args.outpath)
+cropbox = tuple([int(x) for x in args.cropbox.split(',')])
 gif_delay = args.delay
 gif_width = args.width
 font_scale = args.fontscale
@@ -52,8 +55,12 @@ for impath_text in pairs:
     impath_text = impath_text.split(',')
     impath = impath_text[0]
 
-    # Resize
+    # Crop, if asked to, and resize
     im = cv2.imread(impath, cv2.IMREAD_UNCHANGED)
+    assert im is not None, "%s not found" % impath
+    if cropbox != (0, 0, -1, -1):
+        im = im[cropbox[0]:(cropbox[0] + cropbox[2]),
+                cropbox[1]:(cropbox[1] + cropbox[3]), ...]
     im = cv2.resize(im, (gif_width, int(im.shape[0] * gif_width / im.shape[1])))
 
     # Put text
