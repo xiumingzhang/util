@@ -119,7 +119,7 @@ def pyplot_wrapper(*args,
     if xlim is not None:
         ax.set_xlim(left=xlim[0], right=xlim[1])
     if ylim is not None:
-        ax.set_ylim(left=ylim[0], right=ylim[1])
+        ax.set_ylim(bottom=ylim[0], top=ylim[1])
 
     # Axis labels
     if xlabel is not None:
