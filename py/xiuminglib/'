@@ -5,8 +5,7 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
-from os import makedirs
-from os.path import abspath, dirname, exists
+from os.path import abspath
 import logging
 from copy import deepcopy
 import numpy as np
@@ -24,36 +23,17 @@ def arr2im(arr, vispath=None):
     Transforms an array into a uint8 image
 
     Args:
-        arr: Array to be transformed into an image
-            2D or 3D numpy array with one or three channels in the third dimension (RGB)
-        vispath: Where to visualize the result
-            String
-            Optional; defaults to None (do not visualize)
+        im: Image to binarize
+            Numpy array of any integer type (uint8, uint16, etc.)
+                - If h-by-w-3, convert to grayscale and treat as h-by-w
+        threshold: Threshold for binarization
+            Float
+            Optional; defaults to None (midpoint of the dtype)
 
     Returns:
-        im: Result image
-            Integer numpy array of the same size as input
+        im_bin: Binarized image
+            h-by-w numpy array of only 0's and 1's
     """
-    if arr.ndim == 2:
-        arr = arr.reshape(arr.shape + (1,))
-    elif arr.ndim == 3:
-        assert (arr.shape[-1] == 3), "Only single- or three-channel images are supported"
-    else:
-        raise ValueError("'arr' needs to be either 2D or 3D")
-
-    chs = ()
-    for ci in range(arr.shape[-1]):
-        minv, maxv = arr[:, :, ci].min(), arr[:, :, ci].max()
-        chs += (((arr[:, :, ci] - minv) / (maxv - minv) * 255).astype(int),)
-    im = np.dstack(chs)
-
-    if vispath is not None:
-        outdir = dirname(vispath)
-        if not exists(outdir):
-            makedirs(outdir)
-        cv2.imwrite(vispath, im[:, :, ::-1]) # OpenCV uses BGR
-
-    return im
 
 
 def binarize(im, threshold=None):

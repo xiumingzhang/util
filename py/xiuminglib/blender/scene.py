@@ -7,7 +7,8 @@ July 2017
 
 import logging
 from os import makedirs, remove
-from os.path import join, abspath, basename, dirname, exists
+from os.path import abspath, dirname, exists
+from time import time
 import cv2
 import bpy
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
@@ -16,7 +17,10 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def set_cycles(w=None, h=None, n_samples=None, max_bounces=None, min_bounces=None, transp_bg=None, color_mode=None, color_depth=None):
+def set_cycles(w=None, h=None,
+               n_samples=None, max_bounces=None, min_bounces=None,
+               transp_bg=None,
+               color_mode=None, color_depth=None):
     """
     Set up Cycles as rendering engine
 
@@ -100,6 +104,56 @@ def set_cycles(w=None, h=None, n_samples=None, max_bounces=None, min_bounces=Non
         scene.render.image_settings.color_depth = color_depth
 
     logging.info("%s: Cycles set up as rendering engine", thisfunc)
+
+
+def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_depth=None):
+    """
+    Set some of the scene attributes more easily
+
+    Args:
+        w, h: Width, height of render in pixels
+            Integer
+            Optional; no change if not given
+        n_samples: Number of samples
+            Integer
+            Optional; no change if not given
+        ao: Ambient occlusion
+            Boolean
+            Optional; no change if not given
+        color_mode: Color mode of rendering
+            'BW', 'RGB', or 'RGBA'
+            Optional; no change if not given
+        color_depth: Color depth of rendering
+            '8' or '16'
+            Optional; no change if not given
+    """
+    scene = bpy.context.scene
+    engine = scene.render.engine
+
+    if w is not None:
+        scene.render.resolution_x = w
+
+    if h is not None:
+        scene.render.resolution_y = h
+
+    # Number of samples
+    if n_samples is not None:
+        if engine == 'CYCLES':
+            scene.cycles.samples = n_samples
+        else:
+            raise NotImplementedError(engine)
+
+    # Ambient occlusion
+    if ao is not None:
+        bpy.context.scene.world.light_settings.use_ambient_occlusion = ao
+
+    # Color mode of rendering
+    if color_mode is not None:
+        scene.render.image_settings.color_mode = color_mode
+
+    # Color depth of rendering
+    if color_depth is not None:
+        scene.render.image_settings.color_depth = color_depth
 
 
 def save_blend(outpath, delete_overwritten=False):
@@ -195,7 +249,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
                 for obj in objects:
                     if obj.type == 'MESH':
                         if hide is not None:
-                            ignore_list = hide.get(cam.name, []) # if no such key, returns empty list
+                            ignore_list = hide.get(cam.name, [])
                             if not isinstance(ignore_list, list):
                                 # Single object
                                 ignore_list = [ignore_list]
@@ -210,7 +264,8 @@ def render(outpath, text=None, cam_names=None, hide=None):
                 if text is not None:
                     im = cv2.imread(outpath_final, cv2.IMREAD_UNCHANGED)
                     cv2.putText(im, text['contents'], text['bottom_left_corner'],
-                                cv2.FONT_HERSHEY_SIMPLEX, text['font_scale'], text['bgr'], text['thickness'])
+                                cv2.FONT_HERSHEY_SIMPLEX, text['font_scale'],
+                                text['bgr'], text['thickness'])
                     cv2.imwrite(outpath_final, im)
 
                 logging.info("%s: Rendered with camera '%s'", thisfunc, cam.name)
@@ -225,7 +280,8 @@ def render(outpath, text=None, cam_names=None, hide=None):
         return result_path
 
 
-def render_mask(outpath, cam, obj_names=None):
+# TODO change to depth-based
+def render_mask(outpath, cam=None, obj_names=None):
     """
     Render binary masks of objects from the specified camera
 
@@ -233,16 +289,23 @@ def render_mask(outpath, cam, obj_names=None):
         outpath: Path to save render to, e.g., '~/foo.png'
             String
         cam: Camera through which scene is rendered
-            bpy_types.Object
+            bpy_types.Object or None
+            Optional; defaults to None (the only camera in scene)
         obj_names: Name(s) of object(s) of interest
             String or list thereof
             Optional; defaults to None (all objects)
 
     Returns:
-        result_path: Path(s) to the rendering ('outpath' suffixed by object names)
+        result_path: Path to the rendering ('outpath' suffixed by object names)
             String
     """
     thisfunc = thisfile + '->render_mask()'
+
+    if cam is None:
+        cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
+        assert (len(cams) == 1), ("There are more than one cameras in the scene, "
+                                  "but using which one is not specified")
+        cam = cams[0]
 
     if isinstance(obj_names, str):
         obj_names = [obj_names]
@@ -263,7 +326,8 @@ def render_mask(outpath, cam, obj_names=None):
 
     # Append names of objects of interest
     ext = outpath.split('.')[-1]
-    outpath_final = outpath.replace('.' + ext, '_mask-of-' + '-'.join(obj_names) + '.' + ext)
+    outpath_final = outpath.replace('.' + ext,
+                                    '_mask-of-' + '-'.join(obj_names) + '.' + ext)
     scene.render.filepath = outpath_final
 
     # Set background pure black (by using no background node)
@@ -296,7 +360,8 @@ def render_mask(outpath, cam, obj_names=None):
             nodes.new('ShaderNodeEmission')
             nodes['Emission'].inputs[0].default_value = (1, 1, 1, 1) # pure white
             nodes.new('ShaderNodeOutputMaterial')
-            node_tree.links.new(nodes['Emission'].outputs[0], nodes['Material Output'].inputs[0])
+            node_tree.links.new(nodes['Emission'].outputs[0],
+                                nodes['Material Output'].inputs[0])
         else:
             # Including lamps, so they are effectively turned off
             obj.hide_render = True
@@ -304,57 +369,85 @@ def render_mask(outpath, cam, obj_names=None):
     # Render
     bpy.ops.render.render(write_still=True)
 
-    logging.info("%s: Binary mask(s) of %s rendered through '%s'", thisfunc, obj_names, cam.name)
-    logging.warning("%s:     ..., and node trees of these objects and object renderability have changed", thisfunc)
+    logging.info("%s: Binary mask of %s rendered through '%s'",
+                 thisfunc, obj_names, cam.name)
+    logging.warning(("%s:     ...; node trees and renderability "
+                     "of these objects have changed"), thisfunc)
 
     return outpath_final
 
 
-def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_depth=None):
+def render_depth(cam=None, obj_names=None, ray_depth=False):
     """
-    Set some of the scene attributes more easily
+    Render depth maps of the objects from the specified camera
 
     Args:
-        w, h: Width, height of render in pixels
-            Integer
-            Optional; no change if not given
-        n_samples: Number of samples
-            Integer
-            Optional; no change if not given
-        ao: Ambient occlusion
+        cam: Camera through which scene is rendered
+            bpy_types.Object or None
+            Optional; defaults to None (the only camera in scene)
+        obj_names: Name(s) of object(s) of interest
+            String or list thereof
+            Optional; defaults to None (all objects)
+        ray_depth: Whether to render ray or plane depth
             Boolean
-            Optional; no change if not given
-        color_mode: Color mode of rendering
-            'BW', 'RGB', or 'RGBA'
-            Optional; no change if not given
-        color_depth: Color depth of rendering
-            '8' or '16'
-            Optional; no change if not given
+            Optional; defaults to False (plane depth)
+
+    Returns:
+        depth: Rendered depth map
+            2D numpy array holding an absolute depth value for each pixel
     """
+    thisfunc = thisfile + '->render_depth()'
+
+    if cam is None:
+        cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
+        assert (len(cams) == 1), ("There should be exactly one camera in the scene, "
+                                  "when 'cam' is not given")
+        cam = cams[0]
+
+    if isinstance(obj_names, str):
+        obj_names = [obj_names]
+    elif obj_names is None:
+        obj_names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+
     scene = bpy.context.scene
     engine = scene.render.engine
+    if engine != 'CYCLES':
+        raise NotImplementedError(engine)
 
-    if w is not None:
-        scene.render.resolution_x = w
+    scene.cycles.samples = 1
+    exr_path = '/tmp/%s_zbuffer' % time()
+    scene.render.filepath = exr_path
 
-    if h is not None:
-        scene.render.resolution_y = h
+    # Set active camera
+    scene.camera = cam
 
-    # Number of samples
-    if n_samples is not None:
-        if engine == 'CYCLES':
-            scene.cycles.samples = n_samples
-        else:
-            raise NotImplementedError(engine)
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            if obj.name in obj_names:
+                obj.hide_render = False
+            else:
+                obj.hide_render = True
 
-    # Ambient occlusion
-    if ao is not None:
-        bpy.context.scene.world.light_settings.use_ambient_occlusion = ao
+    # Set nodes for z pass rendering
+    scene.use_nodes = True
+    node_tree = scene.node_tree
+    nodes = node_tree.nodes
+    node_tree.links.remove(nodes['Render Layers'].outputs[0].links[0])
+    nodes.new('CompositorNodeOutputFile')
+    nodes['File Output'].format.file_format = 'OPEN_EXR'
+    nodes['File Output'].format.color_depth = '32'
+    nodes['File Output'].format.color_mode = 'RGB'
+    nodes['File Output'].base_path = '/tmp'
+    node_tree.links.new(nodes['Render Layers'].outputs[2], nodes['File Output'].inputs[0])
 
-    # Color mode of rendering
-    if color_mode is not None:
-        scene.render.image_settings.color_mode = color_mode
+    # Render
+    bpy.ops.render.render(write_still=True)
 
-    # Color depth of rendering
-    if color_depth is not None:
-        scene.render.image_settings.color_depth = color_depth
+    logging.info("%s: Depth map of %s rendered through '%s'",
+                 thisfunc, obj_names, cam.name)
+    logging.warning("%s:     ..., and the scene node tree has changed", thisfunc)
+
+
+if __name__ == '__main__':
+    bpy.ops.wm.open_mainfile(filepath='/data/vision/billf/shapetime/new1/output/xiuming_siggraph18_2/fig-ingredients/3d-pose_perframe-vs-joint-opt/ballet11-1/perframe-opt.blend')
+    render_depth()
