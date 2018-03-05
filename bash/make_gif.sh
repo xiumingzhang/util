@@ -2,4 +2,4 @@
 
 # Wrapper
 
-python3 "$UTIL_DIR/py/xiuminglib/commandline/make_gif.py" "$@"
+python3 "$UTIL_DIR/py/commandline/make_gif.py" "$@"

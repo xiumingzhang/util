@@ -2,4 +2,4 @@
 
 # Wrapper
 
-python2 "$UTIL_DIR/py/xiuminglib/commandline/exr2npz.py" "$@"
+python2 "$UTIL_DIR/py/commandline/exr2npz.py" "$@"
