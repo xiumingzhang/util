@@ -7,7 +7,8 @@ July 2017
 
 import logging
 from os import makedirs, remove
-from os.path import abspath, dirname, exists
+from os.path import abspath, dirname, exists, join
+from shutil import move
 from time import time
 import cv2
 import bpy
@@ -377,11 +378,13 @@ def render_mask(outpath, cam=None, obj_names=None):
     return outpath_final
 
 
-def render_depth(cam=None, obj_names=None, ray_depth=False):
+def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     """
-    Render depth maps of the objects from the specified camera
+    Render depth map of the specified object(s) from the specified camera
 
     Args:
+        outpath: Where to save the depth map
+            String
         cam: Camera through which scene is rendered
             bpy_types.Object or None
             Optional; defaults to None (the only camera in scene)
@@ -420,10 +423,10 @@ def render_depth(cam=None, obj_names=None, ray_depth=False):
 
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
-            if obj.name in obj_names:
-                obj.hide_render = False
-            else:
-                obj.hide_render = True
+            obj.hide_render = obj.name not in obj_names
+
+    if ray_depth:
+        raise NotImplementedError("Ray depth")
 
     # Set nodes for z pass rendering
     scene.use_nodes = True
@@ -440,11 +443,11 @@ def render_depth(cam=None, obj_names=None, ray_depth=False):
     # Render
     bpy.ops.render.render(write_still=True)
 
+    # Move from temporary directory
+    if not outpath.endswith('.exr'):
+        outpath += '.exr'
+    move(join(nodes['File Output'].base_path, 'Image0001.exr'), outpath)
+
     logging.info("%s: Depth map of %s rendered through '%s'",
                  thisfunc, obj_names, cam.name)
     logging.warning("%s:     ..., and the scene node tree has changed", thisfunc)
-
-
-if __name__ == '__main__':
-    bpy.ops.wm.open_mainfile(filepath='/data/vision/billf/shapetime/new1/output/xiuming_siggraph18_2/fig-ingredients/3d-pose_perframe-vs-joint-opt/ballet11-1/perframe-opt.blend')
-    render_depth()
