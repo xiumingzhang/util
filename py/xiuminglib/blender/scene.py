@@ -413,10 +413,7 @@ def render_depth(cam=None, obj_names=None, ray_depth=False):
     engine = scene.render.engine
     if engine != 'CYCLES':
         raise NotImplementedError(engine)
-
     scene.cycles.samples = 1
-    exr_path = '/tmp/%s_zbuffer' % time()
-    scene.render.filepath = exr_path
 
     # Set active camera
     scene.camera = cam
@@ -437,7 +434,7 @@ def render_depth(cam=None, obj_names=None, ray_depth=False):
     nodes['File Output'].format.file_format = 'OPEN_EXR'
     nodes['File Output'].format.color_depth = '32'
     nodes['File Output'].format.color_mode = 'RGB'
-    nodes['File Output'].base_path = '/tmp'
+    nodes['File Output'].base_path = '/tmp/%s' % time()
     node_tree.links.new(nodes['Render Layers'].outputs[2], nodes['File Output'].inputs[0])
 
     # Render

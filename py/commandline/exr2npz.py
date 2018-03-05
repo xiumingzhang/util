@@ -35,8 +35,8 @@ if not exists(outdir):
 f = OpenEXR.InputFile(inpath)
 pix_type = Imath.PixelType(Imath.PixelType.FLOAT)
 data_win = f.header()['dataWindow']
-win_size = (data_win.max.x - data_win.min.x + 1,
-            data_win.max.y - data_win.min.y + 1)
+win_size = (data_win.max.y - data_win.min.y + 1,
+            data_win.max.x - data_win.min.x + 1)
 
 imgs = {}
 for c in f.header()['channels']:
