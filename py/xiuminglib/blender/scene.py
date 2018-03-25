@@ -438,6 +438,7 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     nodes['File Output'].format.color_depth = '32'
     nodes['File Output'].format.color_mode = 'RGB'
     nodes['File Output'].base_path = '/tmp/%s' % time()
+    scene.render.filepath = '/tmp/%s' % time()
     node_tree.links.new(nodes['Render Layers'].outputs[2], nodes['File Output'].inputs[0])
 
     # Render
@@ -451,3 +452,10 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     logging.info("%s: Depth map of %s rendered through '%s'",
                  thisfunc, obj_names, cam.name)
     logging.warning("%s:     ..., and the scene node tree has changed", thisfunc)
+
+
+if __name__ == '__main__':
+    blend_f = '/data/vision/billf/shapetime/new1/output/xiuming_siggraph18_2/as-somersault/leather_scene_raw/119.blend'
+    tmp_d = '/data/vision/billf/scratch/xiuming/tmp'
+    bpy.ops.wm.open_mainfile(filepath=blend_f)
+    render_depth(join(tmp_d, 'test'))
