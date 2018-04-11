@@ -1,153 +1,149 @@
 from subprocess import call
 from random import shuffle
-import os
 from os import makedirs
-from os.path import exists
-import re
-import ast
-import argparse
-import configparser
-exec_client = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'exec_client.py')
+from os.path import exists, join, dirname, realpath, basename, splitext
+from ast import literal_eval
+from argparse import ArgumentParser
+from configparser import ConfigParser
+import logging
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
+
+logging.basicConfig(level=logging.INFO)
+
+exec_client = join(dirname(realpath(__file__)), 'exec_client.py')
 
 
-def split_jobs(total_jobs, n_machines, pool_path, prefix='depth'):
-    jobs = []
+def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
+    # Init
+    machine_cmds, machine_expects = [], []
     for n in range(n_machines):
-        jobs.append([])
-    n = 0
-    for k in total_jobs:
-        jobs[n].append(k)
-        n += 1
-        if n >= n_machines:
-            n = 0
-    for id_job, job in enumerate(jobs):
-        file_path = os.path.join(
-            pool_path, '{}_{:02d}.txt'.format(prefix, id_job))
-        with open(file_path, 'w') as f:
-            for k in job:
-                f.write('{}\n'.format(k))
-        print('{}: {}'.format(id_job, len(job)))
+        machine_cmds.append([])
+        machine_expects.append([])
+    #
+    m_id = 0
+    for i, x in enumerate(cmds):
+        machine_cmds[m_id].append(x)
+        machine_expects[m_id].append(cmd_expects[i])
+        m_id += 1
+        if m_id >= n_machines:
+            m_id = 0
+    for mi, thismachine_cmds in enumerate(machine_cmds):
+        outf = join(pool_dir, '{}_{:09d}.cmds'.format(prefix, mi))
+        with open(outf, 'w') as f:
+            for cmd in thismachine_cmds:
+                f.write(cmd + '\n')
+        outf = join(pool_dir, '{}_{:09d}.expects'.format(prefix, mi))
+        with open(outf, 'w') as f:
+            for es in machine_expects[mi]:
+                f.write(' '.join(es) + '\n')
 
 
-def send_jobs(machine_list, prefix, pool_path, dry_run=False, is_python=True, exec_args_in=""):
-    cmd = []
-    for idk, k in enumerate(machine_list):
-        job_file = os.path.join(pool_path, '{}_{:02d}.txt'.format(prefix, idk))
-        if '{}' in exec_args_in:
-            exec_args = exec_args_in.format(idk)
-        else:
-            exec_args = exec_args_in
-        if is_python:
-            cmd_cur = "ssh -f vision{} python {} {} {}".format(
-                k, exec_client, exec_args, job_file)
-        else:
-            cmd_cur = "ssh -f vision{} {} {} {}".format(
-                k, exec_client, exec_args, job_file)
-
-        print(cmd_cur)
-        cmd.append(cmd_cur)
-    with open(os.path.join(pool_path, 'cmd_log.txt'), 'w') as f:
-        for k in cmd:
-            f.write('{}\n'.format(k))
-    if not dry_run:
-        for k in cmd:
-            call(k, shell=True)
-
-
-def prepare_jobs(command, args):
-    jobs = []
-    if '{}' in command:
-        for k in args:
-            jobs.append(command.format(k.strip()))
+def send_jobs(machine_list, curr_dir, pool_dir, prefix, dry_run=False, exec_args=''):
+    cmds = []
+    for i, x in enumerate(machine_list):
+        cmds_file = join(pool_dir, '{}_{:09d}.cmds'.format(prefix, i))
+        expects_file = join(pool_dir, '{}_{:09d}.expects'.format(prefix, i))
+        cmd = 'ssh -f vision{} "cd {}; python {} {} {} {}"'.format(
+            x, curr_dir, exec_client, exec_args, cmds_file, expects_file)
+        cmds.append(cmd)
+    with open(join(pool_dir, 'ssh.cmds'), 'w') as f:
+        for x in cmds:
+            f.write(x + '\n')
+    if dry_run:
+        for x in cmds:
+            logging.info("%s", x)
     else:
-        for k in args:
-            if command == '':
-                jobs.append('{}{}'.format(command, k.strip()))
-            else:
-                jobs.append('{} {}'.format(command, k.strip()))
-    return jobs
+        for x in cmds:
+            call(x, shell=True)
 
 
-def main(args):
-    config_file = args.config_file
-    config = configparser.ConfigParser()
-    config.read(config_file)
-    name = config['Name']['name']
-    global exec_client
-    if 'Client' in config:
-        exec_client = config['Client']['client']
-    command = config['Command']['command']
-    cpu_machine_list = config['Machines']['cpu']
-    cpu_machine_list = [x for x in eval(cpu_machine_list)]
-    shuffle(cpu_machine_list)
-    print(cpu_machine_list)
-    gpu_machine_list = config['Machines']['gpu']
-    gpu_machine_list = ast.literal_eval(gpu_machine_list)
-    pool_path = config['Pool']['pool_path']
-    if not exists(pool_path):
-        makedirs(pool_path)
-    jobs_path = config['Job_list']['jobs_path']
-    machine_list = []
-    for k in cpu_machine_list:
-        machine_list.append('%02d' % k)
-    for k in gpu_machine_list:
-        machine_list.append('gpu%02d' % k)
-    with open(jobs_path) as f:
-        total_jobs = f.readlines()
-    if args.strip:
-        for idx, x in enumerate(total_jobs):
-            total_jobs[idx] = re.sub(r"\.\S*", "", x)
-    total_jobs = prepare_jobs(command, total_jobs)
-    exec_args = prepare_exec_args(args)
-    if 'Client_args' in config:
-        exec_args += config['Client_args']['args']
-    if args.full_file:
-        if args.exe_thread < 0:
-            th = 10
-        else:
-            th = args.exe_thread
-        split_jobs(total_jobs, len(machine_list) * th,
-                   pool_path=pool_path, prefix=name)
+def gen_full_cmds(cmd_prefix, params_file, expect_file):
+    with open(params_file) as f:
+        params = f.readlines()
+    if expect_file is None:
+        expects = None
     else:
-        split_jobs(total_jobs, len(machine_list),
-                   pool_path=pool_path, prefix=name)
-    send_jobs(machine_list, name, pool_path=pool_path,
-              is_python=(not args.no_python), dry_run=args.try_only, exec_args_in=exec_args)
+        with open(expect_file) as f:
+            expects = f.readlines()
+        assert len(params) == len(expects), \
+            "Lines of expect_file and params_file must correspond"
+    cmds, cmd_expects = [], []
+    for i, x in enumerate(params):
+        cmds.append('%s %s' % (cmd_prefix, x.strip()))
+        if expects is None:
+            cmd_expects.append(['a-nonexistent-placeholder-file'])
+        else:
+            cmd_expects.append(expects[i].strip().split(' '))
+    return cmds, cmd_expects
 
 
-def prepare_exec_args(args):
-    exec_args = ""
-    if args.exe_seg > 0:
-        exec_args += "-s {} ".format(args.exe_seg)
-    if args.exe_thread > 0:
-        exec_args += "-t {} ".format(args.exe_thread)
-    if args.exe_cap > 0:
-        exec_args += "-c {} ".format(args.exe_cap)
-    if args.exe_dryrun:
-        exec_args += "-d "
+def gen_exec_args(args):
+    exec_args = ''
+    if args.exec_seg > 0:
+        exec_args += '-s {} '.format(args.exec_seg)
+    if args.exec_thread > 0:
+        exec_args += '-t {} '.format(args.exec_thread)
+    if args.exec_cap > 0:
+        exec_args += '-c {} '.format(args.exec_cap)
+    if args.exec_dryrun:
+        exec_args += '-d '
     return exec_args
 
 
+def main(args):
+    # Absolute paths
+    config = ConfigParser(inline_comment_prefixes='#')
+    config.read(args.config_file)
+    curr_dir = config['Environment']['curr_dir']
+    job_file = join(curr_dir, config['Job']['job_file'])
+    job_name = splitext(basename(job_file))[0]
+    cmd_prefix = '%s %s' % (config['Job']['bin'], job_file)
+    params_file = join(curr_dir, config['Job']['params_file'])
+    pool_dir = join(curr_dir, config['Job']['pool_dir'])
+    if not exists(pool_dir):
+        makedirs(pool_dir)
+    if 'expect_file' in config['Optional']:
+        expect_file = join(curr_dir, config['Optional']['expect_file'])
+        if not exists(expect_file):
+            logging.warning("expect_file provided, but non-existent, so skipping no jobs")
+            expect_file = None
+    else:
+        expect_file = None
+
+    # Machines
+    cpu_machines = [x for x in eval(config['Machines']['cpu'])]
+    shuffle(cpu_machines) # in-place
+    gpu_machines = [x for x in literal_eval(config['Machines']['gpu'])]
+    shuffle(gpu_machines) # in-place
+    machine_list = []
+    for x in cpu_machines:
+        machine_list.append('%02d' % x)
+    for x in gpu_machines:
+        machine_list.append('gpu%02d' % x)
+
+    cmds, cmd_expects = gen_full_cmds(cmd_prefix, params_file, expect_file)
+
+    exec_args = gen_exec_args(args)
+
+    split_jobs(cmds, cmd_expects, len(machine_list), pool_dir, job_name)
+
+    send_jobs(machine_list, curr_dir, pool_dir, job_name,
+              dry_run=args.dryrun,
+              exec_args=exec_args)
+
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='dispatch your jobs to machines')
+    parser = ArgumentParser(description="Dispatch jobs to machines")
     parser.add_argument('config_file', type=str,
-                        help="path to configuration files")
-    parser.add_argument('-s', '--strip', action="store_true",
-                        help="strip extention names for file list")
-    parser.add_argument('-n', '--no_python', action="store_true",
-                        help="do not append python before exec_client")
-    parser.add_argument('-t', '--try_only', action="store_true",
-                        help=" dry run, print command with out running every thing.")
-    parser.add_argument('-es', '--exe_seg', type=int,
-                        help="exec client segments for updating progress", default=-1)
-    parser.add_argument('-et', '--exe_thread', type=int,
-                        help='exec thred number', default=-1)
-    parser.add_argument('-ec', '--exe_cap', type=int,
-                        help="cap the task list to test on small batch.", default=-1)
-    parser.add_argument('-ed', '--exe_dryrun', action='store_true',
-                        help="print command but do not execute.")
-    parser.add_argument('-f', '--full_file', action='store_true',
-                        help="send the path to job_file as arguement to command. This is for programs that has long start-up/ quit time, such as matlab.")
-    args = parser.parse_args()
-    main(args)
+                        help="path to the configuration file")
+    parser.add_argument('--dryrun', action='store_true',
+                        help="print commands without executing them")
+    parser.add_argument('--exec_seg', type=int,
+                        help="for exec_client: segment number for updating progress", default=-1)
+    parser.add_argument('--exec_thread', type=int,
+                        help="for exec_client: thred number", default=-1)
+    parser.add_argument('--exec_cap', type=int,
+                        help="for exec_client: cap the task list to test on small batches", default=-1)
+    parser.add_argument('--exec_dryrun', action='store_true',
+                        help="for exec_client: print commands without executing")
+    main(parser.parse_args())
