@@ -1,27 +1,20 @@
-#!/usr/bin/env python3
-
 from subprocess import call, check_output, Popen, PIPE
-machine_names = ['asia', 'africa', 'america', 'europe',
-                 'antarctica', 'australia', 'monday',
-                 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
 cpu_machines = ['vision%02d' % e for e in range(1, 39)]
 gpu_machines = ['visiongpu%02d' % e for e in range(1, 21)]
-machine_names = machine_names + cpu_machines + gpu_machines
+machine_names = cpu_machines + gpu_machines
 
 
 def kill(machine_name):
-    print('hi')
     if machine_name == check_output('hostname').decode().strip('\n'):
+        # Can't kill this machine
         return
-    r = call('timeout 0.5 ping -c1 %s' % machine_name, shell=True)
-    if r == 0:
-        print('hi')
+    if call('timeout 0.5 ping -c1 %s' % machine_name, shell=True) == 0:
         is_found = False
         ps = Popen('ssh -o PasswordAuthentication=no -t %s "ps a -u xiuming x | grep exec_client"' %
                    machine_name, stdout=PIPE, shell=True).communicate()[0].decode()
         ps = ps.split('\n')
         print(ps)
-        killlist = []
         for p in ps:
             if len(p) < 3:
                 continue
@@ -32,11 +25,11 @@ def kill(machine_name):
                 is_found = True
                 break
         if is_found:
-            print('found client!')
+            print("found client!")
             call('ssh -o PasswordAuthentication=no -t %s kill -9 %s' %
                  (machine_name, pid), shell=True)
 
 
 if __name__ == '__main__':
-    for m in machine_names:
-        kill(m)
+    for x in machine_names:
+        kill(x)
