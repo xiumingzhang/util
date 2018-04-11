@@ -1,5 +1,8 @@
 from subprocess import call
+from random import shuffle
 import os
+from os import makedirs
+from os.path import exists
 import re
 import ast
 import argparse
@@ -75,11 +78,14 @@ def main(args):
         exec_client = config['Client']['client']
     command = config['Command']['command']
     cpu_machine_list = config['Machines']['cpu']
+    cpu_machine_list = [x for x in eval(cpu_machine_list)]
+    shuffle(cpu_machine_list)
     print(cpu_machine_list)
-    cpu_machine_list = eval(cpu_machine_list)
     gpu_machine_list = config['Machines']['gpu']
     gpu_machine_list = ast.literal_eval(gpu_machine_list)
     pool_path = config['Pool']['pool_path']
+    if not exists(pool_path):
+        makedirs(pool_path)
     jobs_path = config['Job_list']['jobs_path']
     machine_list = []
     for k in cpu_machine_list:
@@ -145,16 +151,3 @@ if __name__ == '__main__':
                         help="send the path to job_file as arguement to command. This is for programs that has long start-up/ quit time, such as matlab.")
     args = parser.parse_args()
     main(args)
-
-'''
-    import sys
-    filename = sys.argv[1]
-    machine_list = [11, 12, 13, 15, 16, 17, 18, 19]
-    with open(filename) as f:
-        total_jobs = f.readlines()
-    command = 'python2 /data/vision/billf/jwu-phys/shape_oneshot/ztzhang/tools/save_depth_exr.py'
-    total_jobs = prepare_jobs(command, total_jobs)
-    prefix = 'depth'
-    split_jobs(total_jobs, len(machine_list), prefix=prefix)
-    send_jobs(machine_list, prefix)
-'''
