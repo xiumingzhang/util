@@ -6,6 +6,7 @@ from ast import literal_eval
 from argparse import ArgumentParser
 from configparser import ConfigParser
 import logging
+from tqdm import tqdm
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +28,8 @@ def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
         m_id += 1
         if m_id >= n_machines:
             m_id = 0
-    for mi, thismachine_cmds in enumerate(machine_cmds):
+    logging.info("Generating commands for all machines into pool...")
+    for mi, thismachine_cmds in enumerate(tqdm(machine_cmds)):
         outf = join(pool_dir, '{}_{:09d}.cmds'.format(prefix, mi))
         with open(outf, 'w') as f:
             for cmd in thismachine_cmds:
@@ -94,16 +96,16 @@ def main(args):
     # Absolute paths
     config = ConfigParser(inline_comment_prefixes='#')
     config.read(args.config_file)
-    curr_dir = config['Environment']['curr_dir']
-    job_file = join(curr_dir, config['Job']['job_file'])
+    curr_dir = config['ENVIRONMENT']['curr_dir']
+    job_file = join(curr_dir, config['JOB']['job_file'])
     job_name = splitext(basename(job_file))[0]
-    cmd_prefix = '%s %s' % (config['Job']['bin'], job_file)
-    params_file = join(curr_dir, config['Job']['params_file'])
-    pool_dir = join(curr_dir, config['Job']['pool_dir'])
+    cmd_prefix = '%s %s' % (config['JOB']['bin'], job_file)
+    params_file = join(curr_dir, config['JOB']['params_file'])
+    pool_dir = join(curr_dir, config['JOB']['pool_dir'])
     if not exists(pool_dir):
         makedirs(pool_dir)
-    if 'expect_file' in config['Optional']:
-        expect_file = join(curr_dir, config['Optional']['expect_file'])
+    if 'expect_file' in config['OPTIONAL']:
+        expect_file = join(curr_dir, config['OPTIONAL']['expect_file'])
         if not exists(expect_file):
             logging.warning("expect_file provided, but non-existent, so skipping no jobs")
             expect_file = None
@@ -111,9 +113,9 @@ def main(args):
         expect_file = None
 
     # Machines
-    cpu_machines = [x for x in eval(config['Machines']['cpu'])]
+    cpu_machines = [x for x in eval(config['MACHINES']['cpu'])]
     shuffle(cpu_machines) # in-place
-    gpu_machines = [x for x in literal_eval(config['Machines']['gpu'])]
+    gpu_machines = [x for x in literal_eval(config['MACHINES']['gpu'])]
     shuffle(gpu_machines) # in-place
     machine_list = []
     for x in cpu_machines:
