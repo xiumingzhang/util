@@ -33,6 +33,7 @@ def main(args):
         for f in expects_all[i].strip().split(' '):
             if not exists(f):
                 cmds.append(x)
+                # Found one file missing, need to re-run this job
                 break
 
     hostname = gethostname()

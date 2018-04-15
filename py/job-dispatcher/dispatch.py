@@ -14,6 +14,25 @@ logging.basicConfig(level=logging.INFO)
 exec_client = join(dirname(realpath(__file__)), 'exec_client.py')
 
 
+def send_jobs(machine_list, curr_dir, pool_dir, prefix, dry_run=False, exec_args=''):
+    cmds = []
+    for i, x in enumerate(machine_list):
+        cmds_file = join(pool_dir, '{}_{:09d}.cmds'.format(prefix, i))
+        expects_file = join(pool_dir, '{}_{:09d}.expects'.format(prefix, i))
+        cmd = 'ssh -f vision{} "cd {}; python {} {} {} {}"'.format(
+            x, curr_dir, exec_client, exec_args, cmds_file, expects_file)
+        cmds.append(cmd)
+    with open(join(pool_dir, 'ssh.cmds'), 'w') as f:
+        for x in cmds:
+            f.write(x + '\n')
+    if dry_run:
+        for x in cmds:
+            logging.info("%s", x)
+    else:
+        for x in cmds:
+            call(x, shell=True)
+
+
 def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
     # Init
     machine_cmds, machine_expects = [], []
@@ -40,23 +59,17 @@ def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
                 f.write(' '.join(es) + '\n')
 
 
-def send_jobs(machine_list, curr_dir, pool_dir, prefix, dry_run=False, exec_args=''):
-    cmds = []
-    for i, x in enumerate(machine_list):
-        cmds_file = join(pool_dir, '{}_{:09d}.cmds'.format(prefix, i))
-        expects_file = join(pool_dir, '{}_{:09d}.expects'.format(prefix, i))
-        cmd = 'ssh -f vision{} "cd {}; python {} {} {} {}"'.format(
-            x, curr_dir, exec_client, exec_args, cmds_file, expects_file)
-        cmds.append(cmd)
-    with open(join(pool_dir, 'ssh.cmds'), 'w') as f:
-        for x in cmds:
-            f.write(x + '\n')
-    if dry_run:
-        for x in cmds:
-            logging.info("%s", x)
-    else:
-        for x in cmds:
-            call(x, shell=True)
+def gen_exec_args(args):
+    exec_args = ''
+    if args.exec_seg > 0:
+        exec_args += '-s {} '.format(args.exec_seg)
+    if args.exec_thread > 0:
+        exec_args += '-t {} '.format(args.exec_thread)
+    if args.exec_cap > 0:
+        exec_args += '-c {} '.format(args.exec_cap)
+    if args.exec_dryrun:
+        exec_args += '-d '
+    return exec_args
 
 
 def gen_full_cmds(cmd_prefix, params_file, expect_file):
@@ -77,19 +90,6 @@ def gen_full_cmds(cmd_prefix, params_file, expect_file):
         else:
             cmd_expects.append(expects[i].strip().split(' '))
     return cmds, cmd_expects
-
-
-def gen_exec_args(args):
-    exec_args = ''
-    if args.exec_seg > 0:
-        exec_args += '-s {} '.format(args.exec_seg)
-    if args.exec_thread > 0:
-        exec_args += '-t {} '.format(args.exec_thread)
-    if args.exec_cap > 0:
-        exec_args += '-c {} '.format(args.exec_cap)
-    if args.exec_dryrun:
-        exec_args += '-d '
-    return exec_args
 
 
 def main(args):
