@@ -3,11 +3,11 @@ function visualize_voxels(voxels, varargin)
 %
 % Args:
 %     voxels: X-by-Y-by-Z array of 0's and 1's or floats
-%     thres: threshold; optional (default: 0.5)
+%     thres: threshold; optional (default: 0.2)
 
 % Inputs
 if isempty(varargin)
-    thres = 0.5;
+    thres = 0.2;
 else
     if length(varargin) == 1
         thres = varargin{1};
@@ -22,10 +22,19 @@ if ndims(voxels) ~= 3
 end
 
 ind = find(voxels > thres);
+
 [xs, ys, zs] = ind2sub(size(voxels), ind);
-scatter3(xs, ys, zs, 'filled');
+
+axes = scatter3(xs, ys, zs, 'filled');
+
+res = size(voxels);
+set(gca, 'XLimMode', 'manual', 'XLim', [1, res(1)]);
+set(gca, 'YLimMode', 'manual', 'YLim', [1, res(2)]);
+set(gca, 'ZLimMode', 'manual', 'ZLim', [1, res(3)]);
 axis equal;
+
 xlabel('x');
 ylabel('y');
 zlabel('z');
-view(-90, 0);
+
+view(45, 45);
