@@ -1,0 +1,46 @@
+"""
+General Utility Functions
+
+Xiuming Zhang, MIT CSAIL
+April 2018
+"""
+
+import sys
+from os.path import abspath
+import logging
+import jsonpickle
+import yaml
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
+
+logging.basicConfig(level=logging.INFO)
+thisfile = abspath(__file__)
+
+
+def print_attrs(obj, max_recursion_depth=None, find=[]):
+    """
+    Print all attributes, recursively, of an object
+
+    Args:
+        obj: Object in which we search for the attribute
+            Any object
+        max_recursion_depth: Maximum recursion depth
+            Positive natural number; defaults to None (no limit)
+        find: Attributes to search for
+            A single string or a list thereof; defaults to []
+    """
+    thisfunc = thisfile + '->print_attrs()'
+    logging.info("%s: The object has the following attributes", thisfunc)
+
+    try:
+        serialized = jsonpickle.encode(obj, max_depth=max_recursion_depth)
+    except RecursionError as e:
+        logging.error("%s: %s: %s! Please specify a limit to retry",
+                      thisfunc, 'RecursionError', str(e))
+        sys.exit(1)
+
+    attr_dict = yaml.load(serialized)
+    
+    for x in find:
+
+
+    print(yaml.dump(attr_dict, indent=4))
