@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
 
 
-def print_attrs(obj, excerpts=None, max_recursion_depth=None):
+def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=None):
     """
     Print all attributes, recursively, of an object
 
@@ -25,13 +25,16 @@ def print_attrs(obj, excerpts=None, max_recursion_depth=None):
         obj: Object in which we search for the attribute
             Any object
         excerpts: Print only excerpts containing certain attributes
-            A single string or a list thereof; defaults to None (print all)
+            A single string or a list thereof
+            Optional; defaults to None (print all)
+        excerpt_win_size: How many characters get printed around a match
+            Positive integer
+            Optional; defaults to 60
         max_recursion_depth: Maximum recursion depth
-            Positive natural number; defaults to None (no limit)
+            Positive integer
+            Optional; defaults to None (no limit)
     """
     thisfunc = thisfile + '->print_attrs()'
-
-    excerpt_win_size = 60 # characters
 
     if isinstance(excerpts, str):
         excerpts = [excerpts]
