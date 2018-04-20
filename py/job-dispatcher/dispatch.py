@@ -2,6 +2,7 @@ from subprocess import call
 from random import shuffle
 from os import makedirs
 from os.path import exists, join, dirname, realpath, basename, splitext
+from shutil import rmtree
 from ast import literal_eval
 from argparse import ArgumentParser
 from configparser import ConfigParser
@@ -102,8 +103,8 @@ def main(args):
     cmd_prefix = '%s %s' % (config['JOB']['bin'], job_file)
     params_file = join(curr_dir, config['JOB']['params_file'])
     pool_dir = join(curr_dir, config['JOB']['pool_dir'])
-    if not exists(pool_dir):
-        makedirs(pool_dir)
+    rmtree(pool_dir, ignore_errors=True)
+    makedirs(pool_dir)
     if 'expect_file' in config['OPTIONAL']:
         expect_file = join(curr_dir, config['OPTIONAL']['expect_file'])
         if not exists(expect_file):
