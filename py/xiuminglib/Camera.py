@@ -204,12 +204,20 @@ class PerspCamera(object):
             proj_mat = self.int_mat.dot(ext_mat)
 
         # Project
-        vhs_homo = proj_mat.dot(pts_homo)
-        # 3 x N
+        hvs_homo = proj_mat.dot(pts_homo)
+        # 3 x N: dim0 is horizontal, and dim1 is vertical
 
-        ws = np.tile(vhs_homo[-1, :], (2, 1))
-        vhs = np.divide(vhs_homo[:2, :], ws)
-        return vhs.T
+        hs_homo = hvs_homo[0, :]
+        vs_homo = hvs_homo[1, :]
+        ws = hvs_homo[2, :]
+        hs = np.divide(hs_homo, ws)
+        vs = np.divide(vs_homo, ws)
+
+        vhs = np.vstack((vs, hs)).T
+        if vhs.shape[0] == 1:
+            # Single point
+            vhs = vhs[0, :]
+        return vhs
 
     def backproj(self, depth_im, fg_mask=None, depth_type='plane', space='object'):
         """
@@ -237,32 +245,31 @@ class PerspCamera(object):
         assert depth_type in ('ray', 'plane'), "Unrecognized depth type"
         assert space in ('object', 'camera'), "Unrecognized space"
 
-        # Knowns
         v_is, h_is = np.where(fg_mask)
         hs = h_is + 0.5
         vs = v_is + 0.5
+        h_c = (depth_im.shape[1] - 1) / 2
+        v_c = (depth_im.shape[0] - 1) / 2
         zs = depth_im[fg_mask]
 
         if depth_type == 'ray':
-            v_c = (depth_im.shape[0] - 1) / 2
-            h_c = (depth_im.shape[1] - 1) / 2
             d2 = np.power(vs - v_c, 2) + np.power(hs - h_c, 2)
             # Similar triangles
             zs_plane = np.multiply(zs, self.f_pix / np.sqrt(self.f_pix ** 2 + d2))
             zs = zs_plane
 
-        if space == 'object':
-            proj_mat = self.proj_mat
-        else:
-            ext_mat = np.hstack((np.eye(3), np.zeros((3, 1))))
-            proj_mat = self.int_mat.dot(ext_mat)
+        # Backproject to camera space
+        xs = np.multiply(zs, hs - h_c) / self.f_pix
+        ys = np.multiply(zs, vs - v_c) / self.f_pix
+        pts = np.vstack((xs, ys, zs))
 
-        # Formulate it as ax = b and solve
-        left_half, right_half = proj_mat[:, :2], proj_mat[:, 2:]
-        a = left_half
-        b = np.vstack((hs, vs, np.ones(hs.shape))) - \
-            right_half.dot(np.vstack((zs, np.ones(zs.shape))))
-        x, _, _, _ = np.linalg.lstsq(a, b)
+        if space == 'camera':
+            return pts.T
 
-        pts = np.hstack((x.T, zs.reshape(-1, 1)))
-        return pts
+        # Need to further transform to object space
+        rot_mat = self.ext_mat[:, :3] # happens first in projection
+        trans_vec = self.ext_mat[:, 3].reshape(-1, 1) # happens second in projection
+        n_pts = pts.shape[1]
+        pts_obj = np.linalg.inv(rot_mat).dot(pts - np.tile(trans_vec, (1, n_pts)))
+
+        return pts_obj.T
