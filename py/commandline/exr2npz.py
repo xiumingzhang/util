@@ -1,6 +1,8 @@
 """
 Command Line Tool -- Convert a .exr Image to a .npz Dictionary
 
+(Requires Python 2 for now, so writes to disk for compatibility with Python 3)
+
 Xiuming Zhang, MIT CSAIL
 Feburary 2018
 """
