@@ -31,7 +31,7 @@ for id in "${cpu_list[@]}"; do
     # Kill
     if $tokill; then
         printf -v m "vision%02d" "$id"
-        ssh "$user@$m.csail.mit.edu" "pkill -9 -u $user" &
+        ssh "$user@$m.csail.mit.edu" "killall -9 -u $user" &
         echo "Kill signal sent to $m"
     fi
 done
@@ -50,7 +50,7 @@ for id in "${gpu_list[@]}"; do
     # Kill
     if $tokill; then
         printf -v m "visiongpu%02d" "$id"
-        ssh "$user@$m.csail.mit.edu" "pkill -9 -u $user" &
+        ssh "$user@$m.csail.mit.edu" "killall -9 -u $user" &
         echo "Kill signal sent to $m"
     fi
 done

@@ -16,7 +16,7 @@ thisfile = abspath(__file__)
 
 
 class PerspCamera(object):
-    def __init__(self, f=50., im_res=None, loc=None, lookat=None, up=None):
+    def __init__(self, f=50., im_res=(256, 256), loc=(0, 0, 0), lookat=(0, 0, 0), up=(0, 1, 0)):
         """
         Initialize a perspective camera in 35mm format
         Note:
@@ -35,7 +35,7 @@ class PerspCamera(object):
                 Optional; defaults to (256, 256)
             loc: Camera location (in object space)
                 Array_like of three floats
-                Optional; defaults to None
+                Optional; defaults to (0, 0, 0)
             lookat: Where the camera points to (in object space)
                 Array_like of three floats
                 Optional; defaults to object center
@@ -44,16 +44,9 @@ class PerspCamera(object):
                 Optional; defaults to (0, 1, 0)
         """
         self.f_mm = f
-        if im_res is None:
-            im_res = (256, 256)
         self.im_h, self.im_w = im_res
-        if loc is not None:
-            self.loc = np.array(loc)
-        if lookat is None:
-            lookat = (0, 0, 0)
+        self.loc = np.array(loc)
         self.lookat = np.array(lookat)
-        if up is None:
-            up = (0, 1, 0)
         self.up = np.array(up)
 
     @property
@@ -145,7 +138,15 @@ class PerspCamera(object):
         return self.int_mat.dot(self.ext_mat)
 
     def set_from_mitsuba(self, xml_path):
+        """
+        Set camera with a Mitsuba XML file
+
+        Args:
+            xml_path: XML file path
+                String
+        """
         tree = parse(xml_path)
+
         # Focal length
         f_tag = tree.find('./sensor/string[@name="focalLength"]')
         if f_tag is None:
@@ -156,11 +157,13 @@ class PerspCamera(object):
                 self.f_mm = float(f_str[:-2])
             else:
                 raise NotImplementedError(f_str)
+
         # Extrinsics
         cam_transform = tree.find('./sensor/transform/lookAt').attrib
         self.loc = np.fromstring(cam_transform['origin'], sep=',')
         self.lookat = np.fromstring(cam_transform['target'], sep=',')
         self.up = np.fromstring(cam_transform['up'], sep=',')
+
         # Resolution
         self.im_h = int(tree.find('./sensor/film/integer[@name="height"]').attrib['value'])
         self.im_w = int(tree.find('./sensor/film/integer[@name="width"]').attrib['value'])

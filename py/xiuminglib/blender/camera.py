@@ -11,7 +11,7 @@ from os.path import abspath, dirname, basename
 from time import time
 import bpy
 import bmesh
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 from mathutils.bvhtree import BVHTree
 import numpy as np
 import cv2
@@ -19,10 +19,23 @@ from xiuminglib.blender import object as xb_object
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+logger = logging.getLogger()
+
+folder_names = abspath(__file__).split('/')
+thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
 
 
-def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERSP', f=35, sensor_fit='HORIZONTAL', sensor_width=32, sensor_height=18, clip_start=0.1, clip_end=100):
+def add_camera(
+        xyz=(0, 0, 0),
+        rot_vec_rad=(0, 0, 0),
+        name=None,
+        proj_model='PERSP',
+        f=35,
+        sensor_fit='HORIZONTAL',
+        sensor_width=32,
+        sensor_height=18,
+        clip_start=0.1,
+        clip_end=100):
     """
     Add camera to current scene
 
@@ -62,7 +75,7 @@ def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERS
         cam: Handle of added camera
             bpy_types.Object
     """
-    thisfunc = thisfile + '->add_camera()'
+    logger.name = thisfile + '->add_camera()'
 
     bpy.ops.object.camera_add()
     cam = bpy.context.active_object
@@ -81,12 +94,21 @@ def add_camera(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, proj_model='PERS
     cam.data.clip_start = clip_start
     cam.data.clip_end = clip_end
 
-    logging.info("%s: Camera '%s' added", thisfunc, cam.name)
+    logging.info("Camera '%s' added", cam.name)
 
     return cam
 
 
-def easyset(cam, xyz=None, rot_vec_rad=None, name=None, proj_model=None, f=None, sensor_fit=None, sensor_width=None, sensor_height=None):
+def easyset(
+        cam,
+        xyz=None,
+        rot_vec_rad=None,
+        name=None,
+        proj_model=None,
+        f=None,
+        sensor_fit=None,
+        sensor_width=None,
+        sensor_height=None):
     """
     Set camera parameters more easily
 
@@ -143,27 +165,54 @@ def easyset(cam, xyz=None, rot_vec_rad=None, name=None, proj_model=None, f=None,
         cam.data.sensor_height = sensor_height
 
 
-def point_camera_to(cam, xyz_target):
+def point_camera_to(cam, xyz_target, up=(0, 0, 1)):
     """
     Point camera to target
 
     Args:
         cam: Camera object
             bpy_types.Object
-        xyz_target: Target point
-            3-tuple of floats
+        xyz_target: Target point in world coordinates
+            Array_like of 3 floats
+        up: World vector, when projected, points up in the image plane
+            Array_like of 3 floats
+            Optional; defaults to (0, 0, 1)
     """
-    thisfunc = thisfile + '->point_camera_to()'
+    logger.name = thisfile + '->point_camera_to()'
 
+    up = Vector(up)
     xyz_target = Vector(xyz_target)
-    direction = xyz_target - cam.location
-    # Find quaternion that rotates '-Z' so that it aligns with 'direction'
-    # This rotation is not unique because the rotated camera can still rotate about direction vector
-    # Specifying 'Y' gives the rotation quaternion with camera's 'Y' pointing up
-    rot_quat = direction.to_track_quat('-Z', 'Y')
-    cam.rotation_euler = rot_quat.to_euler()
 
-    logging.info("%s: Camera '%s' pointed to %s", thisfunc, cam.name, xyz_target)
+    direction = xyz_target - cam.location
+
+    # Rotate camera with quaternion so that `track` aligns with `direction`, and
+    # world +z, when projected, aligns with camera +y (i.e., points up in image plane)
+    track = '-Z'
+    rot_quat = direction.to_track_quat(track, 'Y')
+    cam.rotation_euler.rotate(rot_quat)
+
+    # Further rotate camera so that world `up`, when projected, points up on image plane
+    # We know right now world +z, when projected, points up, so we just need to rotate
+    # the camera around the lookat direction by an angle
+    cam_mat, _, _ = get_camera_matrix(cam)
+    up_proj = cam_mat * up.to_4d()
+    orig_proj = cam_mat * Vector((0, 0, 0)).to_4d()
+    up_proj = Vector((up_proj[0] / up_proj[2], up_proj[1] / up_proj[2])) - \
+        Vector((orig_proj[0] / orig_proj[2], orig_proj[1] / orig_proj[2]))
+    # +------->
+    # |
+    # |
+    # v
+    up_proj[1] = -up_proj[1]
+    # ^
+    # |
+    # |
+    # +------->
+    a = Vector((0, 1)).angle_signed(up_proj) # clockwise is positive
+    cam.rotation_euler.rotate(Quaternion(direction, a))
+
+    logging.info("Camera '%s' pointed to %s with world %s pointing up",
+                 cam.name, xyz_target, up)
 
     return cam
 
@@ -171,7 +220,8 @@ def point_camera_to(cam, xyz_target):
 def intrinsics_compatible_with_scene(cam, eps=1e-6):
     """
     Check if camera intrinsic parameters (sensor size and pixel aspect ratio)
-        are comptible with the current scene (render resolutions and their scale)
+        are comptible with the current scene (render resolutions and their scale),
+        assuming the entire sensor is active
 
     Args:
         cam: Camera object
@@ -184,7 +234,7 @@ def intrinsics_compatible_with_scene(cam, eps=1e-6):
         comptible: Result
             Boolean
     """
-    thisfunc = thisfile + '->intrinsics_compatible_with_scene()'
+    logger.name = thisfile + '->intrinsics_compatible_with_scene()'
 
     # Camera
     sensor_width_mm = cam.data.sensor_width
@@ -201,16 +251,17 @@ def intrinsics_compatible_with_scene(cam, eps=1e-6):
     mm_per_pix_horizontal = sensor_width_mm / (w * scale)
     mm_per_pix_vertical = sensor_height_mm / (h * scale)
 
-    if abs(mm_per_pix_horizontal / mm_per_pix_vertical - pixel_aspect_ratio) / pixel_aspect_ratio < eps:
-        logging.info("%s: OK", thisfunc)
-
+    if abs(mm_per_pix_horizontal / mm_per_pix_vertical - pixel_aspect_ratio) \
+            / pixel_aspect_ratio < eps:
+        logging.info("OK")
         return True
     else:
         logging.error((
-            "%s: Render resolutions (w_pix = %d; h_pix = %d), sensor size (w_mm = %f; h_mm = %f), "
-            "and pixel aspect ratio (r = %f) don't make sense together. This could cause "
-            "unexpected behaviors later. Consider running correct_sensor_height()"
-        ), thisfunc, w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
+            "Render resolutions (w_pix = %d; h_pix = %d), active sensor size (w_mm = %f; "
+            "h_mm = %f), and pixel aspect ratio (r = %f) don't make sense together. "
+            "This could cause unexpected behaviors later. "
+            "Consider running correct_sensor_height()"
+        ), w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
 
         return False
 
@@ -224,7 +275,7 @@ def correct_sensor_height(cam):
         cam: Camera object
             bpy_types.Object
     """
-    thisfunc = thisfile + '->correct_sensor_height()'
+    logger.name = thisfile + '->correct_sensor_height()'
 
     # Camera
     sensor_width_mm = cam.data.sensor_width
@@ -239,7 +290,7 @@ def correct_sensor_height(cam):
     sensor_height_mm = sensor_width_mm * h / w / pixel_aspect_ratio
     cam.data.sensor_height = sensor_height_mm
 
-    logging.info("%s: Sensor height changed to %f", thisfunc, sensor_height_mm)
+    logging.info("Sensor height changed to %f", sensor_height_mm)
 
 
 def get_camera_matrix(cam, keep_disparity=False):
@@ -263,7 +314,7 @@ def get_camera_matrix(cam, keep_disparity=False):
         ext_mat: Camera extrinsics
             4-by-4 Matrix if 'keep_disparity'; else, 3-by-4
     """
-    thisfunc = thisfile + '->get_camera_matrix()'
+    logger.name = thisfile + '->get_camera_matrix()'
 
     # Necessary scene update
     scene = bpy.context.scene
@@ -271,9 +322,11 @@ def get_camera_matrix(cam, keep_disparity=False):
 
     # Check if camera intrinsic parameters comptible with render settings
     if not intrinsics_compatible_with_scene(cam):
-        raise ValueError(("Render settings and camera intrinsic parameters mismatch. "
-                          "Such computed matrices will not make sense. Make them consistent first. "
-                          "See error message from 'intrinsics_compatible_with_scene()' above for advice"))
+        raise ValueError(
+            ("Render settings and camera intrinsic parameters mismatch. "
+             "Such computed matrices will not make sense. Make them consistent first. "
+             "See error message from 'intrinsics_compatible_with_scene()' above for advice")
+        )
 
     # Intrinsics
 
@@ -360,8 +413,8 @@ def get_camera_matrix(cam, keep_disparity=False):
     # Camera matrix
     cam_mat = int_mat * ext_mat
 
-    logging.info("%s: Done computing camera matrix for '%s'", thisfunc, cam.name)
-    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
+    logging.info("Done computing camera matrix for '%s'", cam.name)
+    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return cam_mat, int_mat, ext_mat
 
@@ -389,7 +442,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
         zbuffer: Camera z-buffer
             2D numpy array
     """
-    thisfunc = thisfile + '->get_camera_zbuffer()'
+    logger.name = thisfile + '->get_camera_zbuffer()'
 
     # Validate and standardize error-prone inputs
     if hide is not None:
@@ -469,8 +522,8 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
         # User wants it -- rename
         rename(exr_path, outpath + '.exr')
 
-    logging.info("%s: Got z-buffer of camera '%s'", thisfunc, cam.name)
-    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
+    logging.info("Got z-buffer of camera '%s'", cam.name)
+    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return zbuffer
 
@@ -506,7 +559,7 @@ def backproject_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
         intersect_objnames: Name(s) of object(s) responsible for intersections
             String or None (if no intersections) or list thereof
     """
-    thisfunc = thisfile + '->backproject_uv_to_3d()'
+    logger.name = thisfile + '->backproject_uv_to_3d()'
 
     # Standardize inputs
     uvs = np.array(uvs).reshape(-1, 2)
@@ -571,8 +624,8 @@ def backproject_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
         xyzs[i] = first_intersect
         intersect_objnames[i] = first_intersect_objname
 
-    logging.info("%s: Backprojection done with camera '%s'", thisfunc, cam.name)
-    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
+    logging.info("Backprojection done with camera '%s'", cam.name)
+    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     if uvs.shape[0] == 1:
         return xyzs[0], intersect_objnames[0]
@@ -611,7 +664,7 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide
         visible_vert_ind: Indices of vertices that are visible
             List of non-negative integers
     """
-    thisfunc = thisfile + '->get_visible_vertices()'
+    logger.name = thisfile + '->get_visible_vertices()'
 
     scene = bpy.context.scene
     w, h = scene.render.resolution_x, scene.render.resolution_y
@@ -650,8 +703,8 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide
                 if (z - z_min) / z_min < perc_z_eps:
                     visible_vert_ind.append(bv.index)
 
-    logging.info("%s: Visibility test done with camera '%s'", thisfunc, cam.name)
-    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
+    logging.info("Visibility test done with camera '%s'", cam.name)
+    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return visible_vert_ind
 
@@ -678,7 +731,7 @@ def get_2d_bounding_box(obj, cam):
             |
             v v (0, h)
     """
-    thisfunc = thisfile + '->get_2d_bounding_box()'
+    logger.name = thisfile + '->get_2d_bounding_box()'
 
     scene = bpy.context.scene
     w, h = scene.render.resolution_x, scene.render.resolution_y
@@ -703,7 +756,7 @@ def get_2d_bounding_box(obj, cam):
         np.array([u_max, v_max]),
         np.array([u_min, v_max])))
 
-    logging.info("%s: Got 2D bounding box of '%s' in camera '%s'", thisfunc, obj.name, cam.name)
-    logging.warning("%s:     ... using w = %d; h = %d", thisfunc, w * scale, h * scale)
+    logging.info("Got 2D bounding box of '%s' in camera '%s'", obj.name, cam.name)
+    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return corners
