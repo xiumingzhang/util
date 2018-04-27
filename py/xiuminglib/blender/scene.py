@@ -15,7 +15,10 @@ import bpy
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+logger = logging.getLogger()
+
+folder_names = abspath(__file__).split('/')
+thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
 
 
 def set_cycles(w=None, h=None,
@@ -46,7 +49,7 @@ def set_cycles(w=None, h=None,
             '8' or '16'
             Optional; no change if not given
     """
-    thisfunc = thisfile + '->set_cycles()'
+    logger.name = thisfile + '->set_cycles()'
 
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
@@ -104,7 +107,7 @@ def set_cycles(w=None, h=None,
     if color_depth is not None:
         scene.render.image_settings.color_depth = color_depth
 
-    logging.info("%s: Cycles set up as rendering engine", thisfunc)
+    logger.info("Cycles set up as rendering engine")
 
 
 def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_depth=None):
@@ -168,7 +171,7 @@ def save_blend(outpath, delete_overwritten=False):
             Boolean
             Optional; defaults to False
     """
-    thisfunc = thisfile + '->save_blend()'
+    logger.name = thisfile + '->save_blend()'
 
     outdir = dirname(outpath)
     if not exists(outdir):
@@ -179,7 +182,7 @@ def save_blend(outpath, delete_overwritten=False):
     bpy.ops.file.autopack_toggle()
     bpy.ops.wm.save_as_mainfile(filepath=outpath)
 
-    logging.info("%s: Saved to %s", thisfunc, outpath)
+    logger.info("Saved to %s", outpath)
 
 
 def render(outpath, text=None, cam_names=None, hide=None):
@@ -215,7 +218,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
         result_path: Path(s) to the rendering ('outpath' suffixed by camera name)
             String or list thereof
     """
-    thisfunc = thisfile + '->render()'
+    logger.name = thisfile + '->render()'
 
     if isinstance(cam_names, str):
         cam_names = [cam_names]
@@ -269,7 +272,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
                                 text['bgr'], text['thickness'])
                     cv2.imwrite(outpath_final, im)
 
-                logging.info("%s: Rendered with camera '%s'", thisfunc, cam.name)
+                logger.info("Rendered with camera '%s'", cam.name)
 
     # Restore hide_render attributes
     for obj_name, hide_render_value in renderability.items():
@@ -300,7 +303,7 @@ def render_mask(outpath, cam=None, obj_names=None):
         result_path: Path to the rendering ('outpath' suffixed by object names)
             String
     """
-    thisfunc = thisfile + '->render_mask()'
+    logger.name = thisfile + '->render_mask()'
 
     if cam is None:
         cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
@@ -370,10 +373,8 @@ def render_mask(outpath, cam=None, obj_names=None):
     # Render
     bpy.ops.render.render(write_still=True)
 
-    logging.info("%s: Binary mask of %s rendered through '%s'",
-                 thisfunc, obj_names, cam.name)
-    logging.warning(("%s:     ...; node trees and renderability "
-                     "of these objects have changed"), thisfunc)
+    logger.info("Binary mask of %s rendered through '%s'", obj_names, cam.name)
+    logger.warning("    ...; node trees and renderability of these objects have changed")
 
     return outpath_final
 
@@ -399,7 +400,7 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
         depth: Rendered depth map
             2D numpy array holding an absolute depth value for each pixel
     """
-    thisfunc = thisfile + '->render_depth()'
+    logger.name = thisfile + '->render_depth()'
 
     if cam is None:
         cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
@@ -449,9 +450,8 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
         outpath += '.exr'
     move(join(nodes['File Output'].base_path, 'Image0001.exr'), outpath)
 
-    logging.info("%s: Depth map of %s rendered through '%s'",
-                 thisfunc, obj_names, cam.name)
-    logging.warning("%s:     ..., and the scene node tree has changed", thisfunc)
+    logger.info("Depth map of %s rendered through '%s'", obj_names, cam.name)
+    logger.warning("    ..., and the scene node tree has changed")
 
 
 if __name__ == '__main__':

@@ -17,7 +17,10 @@ from mathutils import Matrix, Vector
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+logger = logging.getLogger()
+
+folder_names = abspath(__file__).split('/')
+thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
 
 
 def remove_objects(name_pattern, regex=False):
@@ -27,11 +30,11 @@ def remove_objects(name_pattern, regex=False):
     Args:
         name_pattern: Name or name pattern of object(s) to remove
             String
-        regex: Whether to interpret 'name_pattern' as a regex
+        regex: Whether to interpret `name_pattern` as a regex
             Boolean
             Optional; defaults to False
     """
-    thisfunc = thisfile + '->remove_objects()'
+    logger.name = thisfile + '->remove_objects()'
 
     objs = bpy.data.objects
     removed = []
@@ -62,7 +65,7 @@ def remove_objects(name_pattern, regex=False):
     # Scene update necessary, as matrix_world is updated lazily
     bpy.context.scene.update()
 
-    logging.info("%s: Removed from scene: %s", thisfunc, removed)
+    logger.info("Removed from scene: %s", removed)
 
 
 def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=(0, 0, 0), scale=1, name=None):
@@ -89,7 +92,7 @@ def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_v
         obj: Handle(s) of imported object(s)
             bpy_types.Object or list thereof
     """
-    thisfunc = thisfile + '->import_object()'
+    logger.name = thisfile + '->import_object()'
 
     # Import
     if model_path.endswith('.obj'):
@@ -121,7 +124,7 @@ def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_v
     # Scene update necessary, as matrix_world is updated lazily
     bpy.context.scene.update()
 
-    logging.info("%s: Imported: %s", thisfunc, model_path)
+    logger.info("Imported: %s", model_path)
 
     if len(obj_list) == 1:
         return obj_list[0]
@@ -214,7 +217,7 @@ def add_rectangular_plane(center_loc=(0, 0, 0), point_to=(0, 0, 1), size=(2, 2),
 
     # Point it to target
     direction = Vector(point_to) - plane_obj.location
-    # Find quaternion that rotates plane's 'Z' so that it aligns with 'direction'
+    # Find quaternion that rotates plane's 'Z' so that it aligns with `direction`
     # This rotation is not unique because the rotated plane can still rotate about direction vector
     # Specifying 'Y' gives the rotation quaternion with plane's 'Y' pointing up
     rot_quat = direction.to_track_quat('Z', 'Y')
@@ -242,7 +245,7 @@ def create_mesh(verts, faces, name):
         mesh_data: Mesh data created
             bpy_types.Mesh
     """
-    thisfunc = thisfile + '->create_mesh()'
+    logger.name = thisfile + '->create_mesh()'
 
     verts = np.array(verts)
 
@@ -251,7 +254,7 @@ def create_mesh(verts, faces, name):
     mesh_data.from_pydata(verts, [], faces)
     mesh_data.update()
 
-    logging.info("%s: Mesh '%s' created", thisfunc, name)
+    logger.info("Mesh '%s' created", name)
 
     return mesh_data
 
@@ -279,7 +282,7 @@ def create_object_from_mesh(mesh_data, obj_name, location=(0, 0, 0), rotation_eu
         obj: Object created
             bpy_types.Object
     """
-    thisfunc = thisfile + '->create_object_from_mesh()'
+    logger.name = thisfile + '->create_object_from_mesh()'
 
     # Create
     obj = bpy.data.objects.new(obj_name, mesh_data)
@@ -295,8 +298,7 @@ def create_object_from_mesh(mesh_data, obj_name, location=(0, 0, 0), rotation_eu
     obj.rotation_euler = rotation_euler
     obj.scale = scale
 
-    logging.info("%s: Object '%s' created from mesh data and selected",
-                 thisfunc, obj_name)
+    logger.info("Object '%s' created from mesh data and selected", obj_name)
 
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
@@ -343,11 +345,11 @@ def color_vertices(obj, vert_ind, colors):
         vert_ind: Index/indices of vertex/vertices to color
             Integer or list thereof
         colors: RGB value(s) to paint on vertex/vertices
-            Tuple of three floats in [0, 1] or list thereof
+            Tuple of three/four floats in [0, 1] or list thereof
                 - If one tuple, this color will be applied to all
                 - If list of tuples, must be of same length as vert_ind
     """
-    thisfunc = thisfile + '->color_vertices()'
+    logger.name = thisfile + '->color_vertices()'
 
     # Validate inputs
     if isinstance(vert_ind, int):
@@ -355,7 +357,17 @@ def color_vertices(obj, vert_ind, colors):
     if isinstance(colors, tuple):
         colors = [colors] * len(vert_ind)
     assert (len(colors) == len(vert_ind)), \
-        "'colors' and 'vert_ind' must be of the same length, or 'colors' is a single tuple"
+        "`colors` and `vert_ind` must be of the same length, or `colors` is a single tuple"
+    for i, c in enumerate(colors):
+        c = tuple(c)
+        if len(c) == 3:
+            colors[i] = c + (1,)
+        elif len(c) == 4:
+            colors[i] = c
+        else:
+            raise ValueError("Wrong color length: %d" % len(c))
+    if any(x > 1 for c in colors for x in c):
+        logger.warning("Did you forget to normalize color values to [0, 1]?")
 
     scene = bpy.context.scene
     scene.objects.active = obj
@@ -375,12 +387,11 @@ def color_vertices(obj, vert_ind, colors):
         for loop_idx in poly.loop_indices:
             loop_vert_idx = mesh.loops[loop_idx].vertex_index
             try:
-                # In the list
                 color_idx = vert_ind.index(loop_vert_idx)
-                vcol_layer.data[loop_idx].color = colors[color_idx]
             except ValueError:
-                # Not found
-                pass
+                color_idx = None
+            if color_idx is not None:
+                vcol_layer.data[loop_idx].color = colors[color_idx]
 
     # Set up nodes for vertex colors
     node_tree, nodes = _clear_nodetree_for_active_material(obj)
@@ -394,8 +405,8 @@ def color_vertices(obj, vert_ind, colors):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Vertex color(s) added to '%s'", thisfunc, obj.name)
-    logging.warning("%s:     ..., so node tree of '%s' has changed", thisfunc, obj.name)
+    logger.info("Vertex color(s) added to '%s'", obj.name)
+    logger.warning("    ..., so node tree of '%s' has changed", obj.name)
 
 
 def setup_diffuse_nodetree(obj, roughness=0, color=None):
@@ -414,7 +425,7 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
             4-tuple of floats ranging from 0 to 1
             Optional; defaults to None
     """
-    thisfunc = thisfile + '->setup_diffuse_nodetree()'
+    logger.name = thisfile + '->setup_diffuse_nodetree()'
 
     scene = bpy.context.scene
     engine = scene.render.engine
@@ -434,18 +445,17 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
         node_tree.links.new(nodes['Diffuse BSDF'].outputs[0], nodes['Material Output'].inputs[0])
 
         if color is not None:
-            logging.warning("%s: %s has a texture map associated with it -- 'color' argument ignored",
-                            thisfunc, obj.name)
+            logger.warning("%s has a texture map associated with it -- `color` argument ignored", obj.name)
 
     else:
         # No texture found -- set up diffuse color tree
         if color is None:
             color = (1, 1, 1, 1)
-            logging.warning((
-                "%s: %s has no texture map associated with it, "
-                "and you have not provided any value for argument 'color', "
+            logger.warning((
+                "%s has no texture map associated with it, "
+                "and you have not provided any value for argument `color`, "
                 "so opaque white color is used"
-            ), thisfunc, obj.name)
+            ), obj.name)
 
         nodes.new('ShaderNodeBsdfDiffuse')
         nodes['Diffuse BSDF'].inputs[0].default_value = color
@@ -458,7 +468,7 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Diffuse node tree set up for '%s'", thisfunc, obj.name)
+    logger.info("Diffuse node tree set up for '%s'", obj.name)
 
 
 def setup_emission_nodetree(obj, color=(1, 1, 1, 1), strength=1):
@@ -475,7 +485,7 @@ def setup_emission_nodetree(obj, color=(1, 1, 1, 1), strength=1):
             Float
             Optional; defaults to 1
     """
-    thisfunc = thisfile + '->setup_emission_nodetree()'
+    logger.name = thisfile + '->setup_emission_nodetree()'
 
     scene = bpy.context.scene
     engine = scene.render.engine
@@ -493,7 +503,7 @@ def setup_emission_nodetree(obj, color=(1, 1, 1, 1), strength=1):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Emission node tree set up for '%s'", thisfunc, obj.name)
+    logger.info("Emission node tree set up for '%s'", obj.name)
 
 
 def setup_holdout_nodetree(obj):
@@ -504,7 +514,7 @@ def setup_holdout_nodetree(obj):
         obj: Object bundled with texture map
             bpy_types.Object
     """
-    thisfunc = thisfile + '->setup_holdout_nodetree()'
+    logger.name = thisfile + '->setup_holdout_nodetree()'
 
     scene = bpy.context.scene
     engine = scene.render.engine
@@ -520,7 +530,7 @@ def setup_holdout_nodetree(obj):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Holdout node tree set up for '%s'", thisfunc, obj.name)
+    logger.info("Holdout node tree set up for '%s'", obj.name)
 
 
 def get_bmesh(obj):
@@ -555,7 +565,7 @@ def subdivide_mesh(obj, n_subdiv=2):
             Integer
             Optional; defaults to 2
     """
-    thisfunc = thisfile + '->subdivide_mesh()'
+    logger.name = thisfile + '->subdivide_mesh()'
 
     scene = bpy.context.scene
 
@@ -578,7 +588,7 @@ def subdivide_mesh(obj, n_subdiv=2):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Subdivided mesh of '%s'", thisfunc, obj.name)
+    logger.info("Subdivided mesh of '%s'", obj.name)
 
 
 def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
@@ -593,7 +603,7 @@ def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
         select_type: Type of mesh elements to select
             'vertex', 'edge' or 'face'
     """
-    thisfunc = thisfile + '->select_mesh_elements_by_vertices()'
+    logger.name = thisfile + '->select_mesh_elements_by_vertices()'
 
     if isinstance(vert_ind, int):
         vert_ind = [vert_ind]
@@ -640,4 +650,4 @@ def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logging.info("%s: Selected %s elements of '%s'", thisfunc, select_type, obj.name)
+    logger.info("%s: Selected %s elements of '%s'", select_type, obj.name)

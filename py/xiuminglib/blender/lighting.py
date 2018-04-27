@@ -13,7 +13,10 @@ from mathutils import Vector
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+logger = logging.getLogger()
+
+folder_names = abspath(__file__).split('/')
+thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
 
 
 def point_light_to(light, target):
@@ -26,7 +29,7 @@ def point_light_to(light, target):
         target: Target location to which light rays point
             3-tuple of floats
     """
-    thisfunc = thisfile + '->point_light_to()'
+    logger.name = thisfile + '->point_light_to()'
 
     target = Vector(target)
 
@@ -38,7 +41,7 @@ def point_light_to(light, target):
     rot_quat = direction.to_track_quat('-Z', 'Y')
     light.rotation_euler = rot_quat.to_euler()
 
-    logging.info("%s: Lamp '%s' points to %s now", thisfunc, light.name, target)
+    logger.info("Lamp '%s' points to %s now", light.name, target)
 
 
 def add_light_sun(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=1, size=0.1):
@@ -66,7 +69,7 @@ def add_light_sun(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=1, siz
         sun: Handle of added light
             bpy_types.Object
     """
-    thisfunc = thisfile + '->add_light_sun()'
+    logger.name = thisfile + '->add_light_sun()'
 
     bpy.ops.object.lamp_add(type='SUN', location=xyz, rotation=rot_vec_rad)
     sun = bpy.context.active_object
@@ -83,7 +86,7 @@ def add_light_sun(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=1, siz
     else:
         raise NotImplementedError(engine)
 
-    logging.info("%s: Sun lamp (parallel light) added", thisfunc)
+    logger.info("Sun lamp (parallel light) added")
 
     return sun
 
@@ -113,10 +116,10 @@ def add_light_area(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=100, 
         area: Handle of added light
             bpy_types.Object
     """
-    thisfunc = thisfile + '->add_light_area()'
+    logger.name = thisfile + '->add_light_area()'
 
     if (np.abs(rot_vec_rad) > 2 * np.pi).any():
-        logging.warning("%s: Some input value falls outside [-2pi, 2pi]. Sure inputs are in radians?", thisfunc)
+        logger.warning("Some input value falls outside [-2pi, 2pi]. Sure inputs are in radians?")
 
     bpy.ops.object.lamp_add(type='AREA', location=xyz, rotation=rot_vec_rad)
     area = bpy.context.active_object
@@ -133,7 +136,7 @@ def add_light_area(xyz=(0, 0, 0), rot_vec_rad=(0, 0, 0), name=None, energy=100, 
     else:
         raise NotImplementedError(engine)
 
-    logging.info("%s: Area light added", thisfunc)
+    logger.info("%s: Area light added")
 
     return area
 
@@ -157,7 +160,7 @@ def add_light_point(xyz=(0, 0, 0), name=None, energy=100):
         point: Handle of added light
             bpy_types.Object
     """
-    thisfunc = thisfile + '->add_light_point()'
+    logger.name = thisfile + '->add_light_point()'
 
     bpy.ops.object.lamp_add(type='POINT', location=xyz)
     point = bpy.context.active_object
@@ -174,6 +177,6 @@ def add_light_point(xyz=(0, 0, 0), name=None, energy=100):
     else:
         raise NotImplementedError(engine)
 
-    logging.info("%s: Omnidirectional point light added", thisfunc)
+    logger.info("Omnidirectional point light added")
 
     return point

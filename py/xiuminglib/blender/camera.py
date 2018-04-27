@@ -94,7 +94,7 @@ def add_camera(
     cam.data.clip_start = clip_start
     cam.data.clip_end = clip_end
 
-    logging.info("Camera '%s' added", cam.name)
+    logger.info("Camera '%s' added", cam.name)
 
     return cam
 
@@ -211,8 +211,8 @@ def point_camera_to(cam, xyz_target, up=(0, 0, 1)):
     a = Vector((0, 1)).angle_signed(up_proj) # clockwise is positive
     cam.rotation_euler.rotate(Quaternion(direction, a))
 
-    logging.info("Camera '%s' pointed to %s with world %s pointing up",
-                 cam.name, xyz_target, up)
+    logger.info("Camera '%s' pointed to %s with world %s pointing up",
+                cam.name, tuple(xyz_target), tuple(up))
 
     return cam
 
@@ -253,10 +253,10 @@ def intrinsics_compatible_with_scene(cam, eps=1e-6):
 
     if abs(mm_per_pix_horizontal / mm_per_pix_vertical - pixel_aspect_ratio) \
             / pixel_aspect_ratio < eps:
-        logging.info("OK")
+        logger.info("OK")
         return True
     else:
-        logging.error((
+        logger.error((
             "Render resolutions (w_pix = %d; h_pix = %d), active sensor size (w_mm = %f; "
             "h_mm = %f), and pixel aspect ratio (r = %f) don't make sense together. "
             "This could cause unexpected behaviors later. "
@@ -290,7 +290,7 @@ def correct_sensor_height(cam):
     sensor_height_mm = sensor_width_mm * h / w / pixel_aspect_ratio
     cam.data.sensor_height = sensor_height_mm
 
-    logging.info("Sensor height changed to %f", sensor_height_mm)
+    logger.info("Sensor height changed to %f", sensor_height_mm)
 
 
 def get_camera_matrix(cam, keep_disparity=False):
@@ -308,11 +308,11 @@ def get_camera_matrix(cam, keep_disparity=False):
 
     Returns:
         cam_mat: Camera matrix, product of intrinsics and extrinsics
-            4-by-4 Matrix if 'keep_disparity'; else, 3-by-4
+            4-by-4 Matrix if `keep_disparity`; else, 3-by-4
         int_mat: Camera intrinsics
-            4-by-4 Matrix if 'keep_disparity'; else, 3-by-3
+            4-by-4 Matrix if `keep_disparity`; else, 3-by-3
         ext_mat: Camera extrinsics
-            4-by-4 Matrix if 'keep_disparity'; else, 3-by-4
+            4-by-4 Matrix if `keep_disparity`; else, 3-by-4
     """
     logger.name = thisfile + '->get_camera_matrix()'
 
@@ -413,8 +413,8 @@ def get_camera_matrix(cam, keep_disparity=False):
     # Camera matrix
     cam_mat = int_mat * ext_mat
 
-    logging.info("Done computing camera matrix for '%s'", cam.name)
-    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
+    logger.info("Done computing camera matrix for '%s'", cam.name)
+    logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return cam_mat, int_mat, ext_mat
 
@@ -451,7 +451,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
             hide = [hide]
         for element in hide:
             assert isinstance(element, str), \
-                "'hide' should contain object names (i.e., strings), not objects themselves"
+                "`hide` should contain object names (i.e., strings), not objects themselves"
 
     if save_to is None:
         outpath = '/tmp/%s_zbuffer' % time()
@@ -522,8 +522,8 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
         # User wants it -- rename
         rename(exr_path, outpath + '.exr')
 
-    logging.info("Got z-buffer of camera '%s'", cam.name)
-    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
+    logger.info("Got z-buffer of camera '%s'", cam.name)
+    logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return zbuffer
 
@@ -624,8 +624,8 @@ def backproject_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
         xyzs[i] = first_intersect
         intersect_objnames[i] = first_intersect_objname
 
-    logging.info("Backprojection done with camera '%s'", cam.name)
-    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
+    logger.info("Backprojection done with camera '%s'", cam.name)
+    logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     if uvs.shape[0] == 1:
         return xyzs[0], intersect_objnames[0]
@@ -703,8 +703,8 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide
                 if (z - z_min) / z_min < perc_z_eps:
                     visible_vert_ind.append(bv.index)
 
-    logging.info("Visibility test done with camera '%s'", cam.name)
-    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
+    logger.info("Visibility test done with camera '%s'", cam.name)
+    logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return visible_vert_ind
 
@@ -756,7 +756,7 @@ def get_2d_bounding_box(obj, cam):
         np.array([u_max, v_max]),
         np.array([u_min, v_max])))
 
-    logging.info("Got 2D bounding box of '%s' in camera '%s'", obj.name, cam.name)
-    logging.warning("    ... using w = %d; h = %d", w * scale, h * scale)
+    logger.info("Got 2D bounding box of '%s' in camera '%s'", obj.name, cam.name)
+    logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
     return corners
