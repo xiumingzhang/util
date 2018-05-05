@@ -9,12 +9,42 @@ import sys
 from os.path import abspath
 import logging
 import re
-import jsonpickle
-import yaml
+from importlib import import_module
+import numpy as np
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 thisfile = abspath(__file__)
+
+
+def find_extrema_in(arr, find_max=True, n=1):
+    """
+    Find top (or bottom) value(s) in an m-D numpy array
+
+    Args:
+        arr: Array
+            m-D numpy array
+        find_max: Whether to find the maxima or minima
+            Boolean
+            Optional; defaults to True
+        n: Number of values to return
+            Positive integer
+            Optional; defaults to 1
+
+    Returns:
+        ind: Indice(s) that give the extrema
+            m-tuple of numpy arrays of n integers
+        val: Extremum values, i.e., `arr[ind]`
+            Numpy array of length n
+    """
+    if find_max:
+        arr_to_sort = -arr
+    else:
+        arr_to_sort = arr
+    ind = np.argsort(arr_to_sort.flatten())[:n] # linear
+    ind = np.unravel_index(ind, arr.shape)
+    val = arr[ind]
+    return ind, val
 
 
 def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=None):
@@ -35,6 +65,10 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
             Optional; defaults to None (no limit)
     """
     thisfunc = thisfile + '->print_attrs()'
+
+    # Lazy imports
+    jsonpickle = import_module('jsonpickle')
+    yaml = import_module('yaml')
 
     if isinstance(excerpts, str):
         excerpts = [excerpts]
