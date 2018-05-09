@@ -9,7 +9,6 @@ import sys
 from os.path import abspath
 import logging
 import re
-from importlib import import_module
 import numpy as np
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
@@ -64,11 +63,10 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
             Positive integer
             Optional; defaults to None (no limit)
     """
-    thisfunc = thisfile + '->print_attrs()'
+    import jsonpickle
+    import yaml
 
-    # Lazy imports
-    jsonpickle = import_module('jsonpickle')
-    yaml = import_module('yaml')
+    thisfunc = thisfile + '->print_attrs()'
 
     if isinstance(excerpts, str):
         excerpts = [excerpts]
@@ -91,7 +89,7 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
             logging.info("%s: Excerpt(s) containing '%s':", thisfunc, x)
 
             mis = [m.start() for m in re.finditer(x, serialized)]
-            if len(mis) == 0:
+            if not mis:
                 logging.info(("%s: No matches! "
                               "Retry maybe with deeper recursion"), thisfunc)
             else:
