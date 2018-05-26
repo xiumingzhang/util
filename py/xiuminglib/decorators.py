@@ -8,26 +8,24 @@ April 2017
 from time import time, sleep
 from os import makedirs
 from os.path import abspath, join, dirname
-import logging
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def timeit(somefunc):
     """
     Outputs the time a function takes to execute
     """
-    thisfunc = thisfile + '->@timeit'
+    logger.name = thisfile + '->@timeit'
 
     def wrapper(*arg, **kwargs):
         funcname = somefunc.__name__
-        logging.info("%s: Function %s started", thisfunc, funcname)
+        logger.info("Function %s started", funcname)
         t0 = time()
         results = somefunc(*arg, **kwargs)
         t = time() - t0
-        logging.info("%s: Function %s done in %.2f seconds", thisfunc, funcname, t)
+        logger.info("    ... and done in %.2f seconds", t)
         return results
 
     return wrapper
@@ -39,7 +37,7 @@ def existok(makedirs_func):
     where one parallel worker checks the folder doesn't exist and wants to
     create it with another worker doing so faster
     """
-    thisfunc = thisfile + '->@existok'
+    logger.name = thisfile + '->@existok'
 
     def wrapper(*args, **kwargs):
         try:
@@ -47,7 +45,7 @@ def existok(makedirs_func):
         except OSError as e:
             if e.errno != 17:
                 raise
-            logging.debug("%s: %s already exists, but that is OK", thisfunc, args[0])
+            logger.debug("%s already exists, but that is OK", args[0])
     return wrapper
 
 

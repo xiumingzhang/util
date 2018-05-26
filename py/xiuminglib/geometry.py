@@ -5,18 +5,17 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
-import logging
 from os.path import abspath
 import numpy as np
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def cartesian2spherical(pts_cartesian, convention='lat-lng'):
     """
-    Converts 3D Cartesian coordinates to spherical coordinates, following the convention below
+    Converts 3D Cartesian coordinates to spherical coordinates,
+        following the convention below
 
     Args:
         pts_cartesian: Cartesian x, y and z
@@ -70,13 +69,14 @@ def cartesian2spherical(pts_cartesian, convention='lat-lng'):
     lng = np.arctan2(y, x) # choosing the quadrant correctly
 
     # Assemble
-    pts_r_lat_lng = np.stack((r, lat, lng), axis=-1) # let this new axis be the last dimension
+    pts_r_lat_lng = np.stack((r, lat, lng), axis=-1)
 
     # Select output convention
     if convention == 'lat-lng':
         pts_spherical = pts_r_lat_lng
     elif convention == 'theta-phi':
-        pts_spherical = _convert_spherical_conventions(pts_r_lat_lng, 'lat-lng_to_theta-phi')
+        pts_spherical = _convert_spherical_conventions(
+            pts_r_lat_lng, 'lat-lng_to_theta-phi')
     else:
         raise NotImplementedError(convention)
 
@@ -88,8 +88,8 @@ def cartesian2spherical(pts_cartesian, convention='lat-lng'):
 
 def _convert_spherical_conventions(pts_r_angle1_angle2, what2what):
     """
-    Internal function converting between different conventions for spherical coordinates
-        See cartesian2spherical() for conventions
+    Internal function converting between different conventions
+        for spherical coordinates. See cartesian2spherical() for conventions
     """
     if what2what == 'lat-lng_to_theta-phi':
         pts_r_theta_phi = np.zeros(pts_r_angle1_angle2.shape)
@@ -100,7 +100,8 @@ def _convert_spherical_conventions(pts_r_angle1_angle2, what2what):
         # Angle 2
         ind = pts_r_angle1_angle2[:, 2] < 0
         pts_r_theta_phi[ind, 2] = 2 * np.pi + pts_r_angle1_angle2[ind, 2]
-        pts_r_theta_phi[np.logical_not(ind), 2] = pts_r_angle1_angle2[np.logical_not(ind), 2]
+        pts_r_theta_phi[np.logical_not(ind), 2] = \
+            pts_r_angle1_angle2[np.logical_not(ind), 2]
         return pts_r_theta_phi
 
     elif what2what == 'theta-phi_to_lat-lng':
@@ -112,7 +113,8 @@ def _convert_spherical_conventions(pts_r_angle1_angle2, what2what):
         # Angle 2
         ind = pts_r_angle1_angle2[:, 2] > np.pi
         pts_r_lat_lng[ind, 2] = pts_r_angle1_angle2[ind, 2] - 2 * np.pi
-        pts_r_lat_lng[np.logical_not(ind), 2] = pts_r_angle1_angle2[np.logical_not(ind), 2]
+        pts_r_lat_lng[np.logical_not(ind), 2] = \
+            pts_r_angle1_angle2[np.logical_not(ind), 2]
         return pts_r_lat_lng
 
     else:
@@ -125,7 +127,7 @@ def spherical2cartesian(pts_spherical, convention='lat-lng'):
 
     See cartesian2spherical() for spherical convention, args and returns
     """
-    thisfunc = thisfile + '->spherical2cartesian()'
+    logger.name = thisfile + '->spherical2cartesian()'
 
     pts_spherical = np.array(pts_spherical)
 
@@ -139,13 +141,15 @@ def spherical2cartesian(pts_spherical, convention='lat-lng'):
 
     # Degrees?
     if (np.abs(pts_spherical[:, 1:]) > 2 * np.pi).any():
-        logging.warning("%s: Some input value falls outside [-2pi, 2pi]. Sure inputs are in radians?", thisfunc)
+        logger.warning(("Some input value falls outside [-2pi, 2pi]. "
+                        "Sure inputs are in radians?"))
 
     # Convert to latitude-longitude convention, if necessary
     if convention == 'lat-lng':
         pts_r_lat_lng = pts_spherical
     elif convention == 'theta-phi':
-        pts_r_lat_lng = _convert_spherical_conventions(pts_spherical, 'theta-phi_to_lat-lng')
+        pts_r_lat_lng = _convert_spherical_conventions(
+            pts_spherical, 'theta-phi_to_lat-lng')
     else:
         raise NotImplementedError(convention)
 
@@ -158,7 +162,7 @@ def spherical2cartesian(pts_spherical, convention='lat-lng'):
     y = r * np.cos(lat) * np.sin(lng)
 
     # Assemble and return
-    pts_cartesian = np.stack((x, y, z), axis=-1) # let this new axis be the last dimension
+    pts_cartesian = np.stack((x, y, z), axis=-1)
 
     if is_one_point:
         pts_cartesian = pts_cartesian.reshape(3)
@@ -168,7 +172,7 @@ def spherical2cartesian(pts_spherical, convention='lat-lng'):
 
 def moeller_trumbore(ray_orig, ray_dir, tri_v0, tri_v1, tri_v2):
     """
-    Decides if a ray intersects with a triangle using the Moeller-Trumbore algorithm
+    Decides if a ray intersects with a triangle using Moeller-Trumbore algorithm
         O + tD = (1 - u - v) * V0 + u * V1 + v * V2
 
     Args:
@@ -187,7 +191,6 @@ def moeller_trumbore(ray_orig, ray_dir, tri_v0, tri_v1, tri_v2):
                 between O and O + tD if 0 < t < 1
             Float
     """
-
     # Validate inputs
     ray_orig = np.array(ray_orig)
     ray_dir = np.array(ray_dir)
@@ -211,7 +214,11 @@ if __name__ == '__main__':
     # Unit tests
 
     # cartesian2spherical() and spherical2cartesian()
-    pts_car = np.array([[-1, 2, 3], [4, -5, 6], [3, 5, -8], [-2, -5, 2], [4, -2, -23]])
+    pts_car = np.array([[-1, 2, 3],
+                        [4, -5, 6],
+                        [3, 5, -8],
+                        [-2, -5, 2],
+                        [4, -2, -23]])
     print(pts_car)
     pts_sph = cartesian2spherical(pts_car)
     print(pts_sph)

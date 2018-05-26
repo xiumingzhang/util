@@ -5,20 +5,18 @@ Xiuming Zhang, MIT CSAIL
 June 2017
 """
 
-import logging
 from os import makedirs
 from os.path import abspath, basename, dirname, exists, join
 from shutil import copy
 import numpy as np
-import cv2
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 class Obj(object):
-    def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None, s=False, mtllib=None, usemtl=None, diffuse_map_path=None, diffuse_map_scale=1):
+    def __init__(self, o=None, v=None, f=None, vn=None, fn=None, vt=None, ft=None,
+                 s=False, mtllib=None, usemtl=None, diffuse_map_path=None, diffuse_map_scale=1):
         """
         Class constructor
 
@@ -189,14 +187,14 @@ class Obj(object):
         self.vt = vt if vt.shape[0] > 0 else None
         self.vn = vn if vn.shape[0] > 0 else None
         self.f = f
-        self.ft = ft if any(len(x) > 0 for x in ft) else None
-        self.fn = fn if any(len(x) > 0 for x in fn) else None
+        self.ft = ft if any(ft) else None # any member list not empty
+        self.fn = fn if any(fn) else None
         self.usemtl = usemtl
         self.s = s
 
     # Print model info
     def print_info(self):
-        thisfunc = thisfile + '->Obj:print_info()'
+        logger.name = thisfile + '->Obj:print_info()'
 
         # Basic stats
         mtllib = self.mtllib
@@ -210,37 +208,37 @@ class Obj(object):
         diffuse_map_scale = self.diffuse_map_scale
         n_f = len(self.f) if self.f is not None else 0
         if self.ft is not None:
-            n_ft = sum(len(x) > 0 for x in self.ft)
+            n_ft = sum(len(x) > 0 for x in self.ft) # pylint: disable=len-as-condition
         else:
             n_ft = 0
         if self.fn is not None:
-            n_fn = sum(len(x) > 0 for x in self.fn)
+            n_fn = sum(len(x) > 0 for x in self.fn) # pylint: disable=len-as-condition
         else:
             n_fn = 0
 
-        logging.info("%s: -------------------------------------------------------", thisfunc)
-        logging.info("%s: Object name            'o'            %s", thisfunc, o)
-        logging.info("%s: Material file          'mtllib'       %s", thisfunc, mtllib)
-        logging.info("%s: Material               'usemtl'       %s", thisfunc, usemtl)
-        logging.info("%s: Diffuse texture map    'map_Kd'       %s", thisfunc, diffuse_map_path)
-        logging.info("%s: Diffuse map scale                     %f", thisfunc, diffuse_map_scale)
-        logging.info("%s: Group smoothing        's'            %r", thisfunc, s)
-        logging.info("%s: # geometric vertices   'v'            %d", thisfunc, n_v)
-        logging.info("%s: # texture vertices     'vt'           %d", thisfunc, n_vt)
-        logging.info("%s: # normal vectors       'vn'           %d", thisfunc, n_vn)
-        logging.info("%s: # geometric faces      'f x/o/o'      %d", thisfunc, n_f)
-        logging.info("%s: # texture faces        'f o/x/o'      %d", thisfunc, n_ft)
-        logging.info("%s: # normal faces         'f o/o/x'      %d", thisfunc, n_fn)
+        logger.info("-------------------------------------------------------")
+        logger.info("Object name            'o'            %s", o)
+        logger.info("Material file          'mtllib'       %s", mtllib)
+        logger.info("Material               'usemtl'       %s", usemtl)
+        logger.info("Diffuse texture map    'map_Kd'       %s", diffuse_map_path)
+        logger.info("Diffuse map scale                     %f", diffuse_map_scale)
+        logger.info("Group smoothing        's'            %r", s)
+        logger.info("# geometric vertices   'v'            %d", n_v)
+        logger.info("# texture vertices     'vt'           %d", n_vt)
+        logger.info("# normal vectors       'vn'           %d", n_vn)
+        logger.info("# geometric faces      'f x/o/o'      %d", n_f)
+        logger.info("# texture faces        'f o/x/o'      %d", n_ft)
+        logger.info("# normal faces         'f o/o/x'      %d", n_fn)
 
         # How many triangles, quads, etc.
         if n_f > 0:
-            logging.info("%s:", thisfunc)
-            logging.info("%s: Among %d faces:", thisfunc, n_f)
+            logger.info("")
+            logger.info("Among %d faces:", n_f)
             vert_counts = [len(x) for x in self.f]
             for c in np.unique(vert_counts):
                 howmany = vert_counts.count(c)
-                logging.info("%s:   - %d are formed by %d vertices", thisfunc, howmany, c)
-        logging.info("%s: -------------------------------------------------------", thisfunc)
+                logger.info("  - %d are formed by %d vertices", howmany, c)
+        logger.info("-------------------------------------------------------")
 
     # Set vn and fn according to v and f
     def set_face_normals(self):
@@ -254,7 +252,7 @@ class Obj(object):
                 'len(f)'-long list of lists of integers starting from 1
                 Each member list consists of the same integer, e.g., '[[1, 1, 1], [2, 2, 2, 2], ...]'
         """
-        thisfunc = thisfile + '->Obj:set_face_normals()'
+        logger.name = thisfile + '->Obj:set_face_normals()'
 
         n_f = len(self.f)
         vn = np.zeros((n_f, 3))
@@ -276,7 +274,7 @@ class Obj(object):
         # Set normals and return
         self.vn = vn
         self.fn = fn
-        logging.info("%s: Face normals recalculated with 'v' and 'f' -- 'vn' and 'fn' updated", thisfunc)
+        logger.info("Face normals recalculated with 'v' and 'f' -- 'vn' and 'fn' updated")
         return vn, fn
 
     # Output object to file
@@ -284,7 +282,7 @@ class Obj(object):
         """
         Write the current model to a .obj file
         """
-        thisfunc = thisfile + '->Obj:write_file()'
+        logger.name = thisfile + '->Obj:write_file()'
 
         mtllib = self.mtllib
         o = self.o
@@ -337,7 +335,7 @@ class Obj(object):
                     if len(vt_id) == len(v_id):
                         fid.write(('f' + ' %d/%d' * len(v_id) + '\n') %
                                   tuple([x for pair in zip(v_id, vt_id) for x in pair]))
-                    elif len(vt_id) == 0:
+                    elif not vt_id:
                         fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
                     else:
                         raise ValueError("'ft[%d]', not empty, doesn't match length of 'f[%d]'" % (i, i))
@@ -347,7 +345,7 @@ class Obj(object):
                     if len(vn_id) == len(v_id):
                         fid.write(('f' + ' %d//%d' * len(v_id) + '\n') %
                                   tuple([x for pair in zip(v_id, vn_id) for x in pair]))
-                    elif len(vn_id) == 0:
+                    elif not vn_id:
                         fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
                     else:
                         raise ValueError("'fn[%d]', not empty, doesn't match length of 'f[%d]'" % (i, i))
@@ -358,21 +356,23 @@ class Obj(object):
                     if len(vt_id) == len(v_id) and len(vn_id) == len(v_id):
                         fid.write(('f' + ' %d/%d/%d' * len(v_id) + '\n') %
                                   tuple([x for triple in zip(v_id, vt_id, vn_id) for x in triple]))
-                    elif len(vt_id) == len(v_id) and len(vn_id) == 0:
+                    elif len(vt_id) == len(v_id) and not vn_id:
                         fid.write(('f' + ' %d/%d' * len(v_id) + '\n') %
                                   tuple([x for pair in zip(v_id, vt_id) for x in pair]))
-                    elif len(vt_id) == 0 and len(vn_id) == len(v_id):
+                    elif not vt_id and len(vn_id) == len(v_id):
                         fid.write(('f' + ' %d//%d' * len(v_id) + '\n') %
                                   tuple([x for pair in zip(v_id, vn_id) for x in pair]))
-                    elif len(vt_id) == 0 and len(vn_id) == 0:
+                    elif not vt_id and not vn_id:
                         fid.write(('f' + ' %d' * len(v_id) + '\n') % tuple(v_id))
                     else:
-                        raise ValueError("If not empty, 'ft[%d]' or 'fn[%d]' doesn't match length of 'f[%d]'" % (i, i, i))
-        logging.info("%s: Done writing to %s", thisfunc, objpath)
+                        raise ValueError(
+                            "If not empty, 'ft[%d]' or 'fn[%d]' doesn't match length of 'f[%d]'" % (i, i, i))
+        logger.info("Done writing to %s", objpath)
 
 
 class Mtl(object):
-    def __init__(self, obj, Ns=96.078431, Ka=(1, 1, 1), Kd=(0.64, 0.64, 0.64), Ks=(0.5, 0.5, 0.5), Ni=1, d=1, illum=2): # flake8: noqa
+    def __init__(self, obj, Ns=96.078431, Ka=(1, 1, 1), Kd=(0.64, 0.64, 0.64),
+                 Ks=(0.5, 0.5, 0.5), Ni=1, d=1, illum=2): # flake8: noqa
         """
         Class constructor
 
@@ -421,28 +421,30 @@ class Mtl(object):
 
     # Print material info
     def print_info(self):
-        thisfunc = thisfile + '->Mtl:print_info()'
+        logger.name = thisfile + '->Mtl:print_info()'
 
-        logging.info("%s: -----------------------------------------------------------", thisfunc)
-        logging.info("%s: Material file                          %s", thisfunc, self.mtlfile)
-        logging.info("%s: Material name           'newmtl'       %s", thisfunc, self.newmtl)
-        logging.info("%s: Diffuse texture map     'map_Kd'       %s", thisfunc, self.map_Kd_path)
-        logging.info("%s: Diffuse map scale                      %f", thisfunc, self.map_Kd_scale)
-        logging.info("%s: Specular exponent       'Ns'           %f", thisfunc, self.Ns)
-        logging.info("%s: Ambient reflectivity    'Ka'           %s", thisfunc, self.Ka)
-        logging.info("%s: Diffuse reflectivity    'Kd'           %s", thisfunc, self.Kd)
-        logging.info("%s: Specular reflectivity   'Ks'           %s", thisfunc, self.Ks)
-        logging.info("%s: Refraction index        'Ni'           %s", thisfunc, self.Ni)
-        logging.info("%s: Dissolve                'd'            %f", thisfunc, self.d)
-        logging.info("%s: Illumination model      'illum'        %d", thisfunc, self.illum)
-        logging.info("%s: -----------------------------------------------------------", thisfunc)
+        logger.info("-----------------------------------------------------------")
+        logger.info("Material file                          %s", self.mtlfile)
+        logger.info("Material name           'newmtl'       %s", self.newmtl)
+        logger.info("Diffuse texture map     'map_Kd'       %s", self.map_Kd_path)
+        logger.info("Diffuse map scale                      %f", self.map_Kd_scale)
+        logger.info("Specular exponent       'Ns'           %f", self.Ns)
+        logger.info("Ambient reflectivity    'Ka'           %s", self.Ka)
+        logger.info("Diffuse reflectivity    'Kd'           %s", self.Kd)
+        logger.info("Specular reflectivity   'Ks'           %s", self.Ks)
+        logger.info("Refraction index        'Ni'           %s", self.Ni)
+        logger.info("Dissolve                'd'            %f", self.d)
+        logger.info("Illumination model      'illum'        %d", self.illum)
+        logger.info("-----------------------------------------------------------")
 
     # Output object to file
     def write_file(self, mtldir):
         """
         Write to a .mtl file
         """
-        thisfunc = thisfile + '->Mtl:write_file()'
+        import cv2
+
+        logger.name = thisfile + '->Mtl:write_file()'
 
         # Validate inputs
         assert (self.mtlfile is not None and self.newmtl is not None), "'mtlfile' and 'newmtl' must not be 'None'"
@@ -474,13 +476,12 @@ class Mtl(object):
                     im = cv2.resize(im, None, fx=map_Kd_scale, fy=map_Kd_scale)
                     cv2.imwrite(join(mtldir, basename(map_Kd_path)), im)
 
-        logging.info("%s: Done writing to %s", thisfunc, mtlpath)
+        logger.info("Done writing to %s", mtlpath)
 
 
 # Test
 if __name__ == '__main__':
-    objf = '/data/vision/billf/mooncam/output/xiuming/planets/moon_icosphere/icosphere2.obj'
-    # objf = '../example-obj-mtl/cube.obj'
+    objf = '../../../toy-data/obj-mtl_cube/cube.obj'
     myobj = Obj()
     myobj.print_info()
     myobj.load_file(objf)

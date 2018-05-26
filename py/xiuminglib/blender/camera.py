@@ -5,24 +5,18 @@ Xiuming Zhang, MIT CSAIL
 July 2017
 """
 
-import logging
 from os import remove, rename
 from os.path import abspath, dirname, basename
 from time import time
+import numpy as np
 import bpy
 import bmesh
 from mathutils import Vector, Matrix, Quaternion
 from mathutils.bvhtree import BVHTree
-import numpy as np
-import cv2
 from xiuminglib.blender import object as xb_object
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-
-folder_names = abspath(__file__).split('/')
-thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def add_camera(
@@ -255,15 +249,14 @@ def intrinsics_compatible_with_scene(cam, eps=1e-6):
             / pixel_aspect_ratio < eps:
         logger.info("OK")
         return True
-    else:
-        logger.error((
-            "Render resolutions (w_pix = %d; h_pix = %d), active sensor size (w_mm = %f; "
-            "h_mm = %f), and pixel aspect ratio (r = %f) don't make sense together. "
-            "This could cause unexpected behaviors later. "
-            "Consider running correct_sensor_height()"
-        ), w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
 
-        return False
+    logger.error((
+        "Render resolutions (w_pix = %d; h_pix = %d), active sensor size (w_mm = %f; "
+        "h_mm = %f), and pixel aspect ratio (r = %f) don't make sense together. "
+        "This could cause unexpected behaviors later. "
+        "Consider running correct_sensor_height()"
+    ), w, h, sensor_width_mm, sensor_height_mm, pixel_aspect_ratio)
+    return False
 
 
 def correct_sensor_height(cam):
@@ -442,6 +435,8 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
         zbuffer: Camera z-buffer
             2D numpy array
     """
+    import cv2
+
     logger.name = thisfile + '->get_camera_zbuffer()'
 
     # Validate and standardize error-prone inputs
@@ -629,8 +624,7 @@ def backproject_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
 
     if uvs.shape[0] == 1:
         return xyzs[0], intersect_objnames[0]
-    else:
-        return xyzs, intersect_objnames
+    return xyzs, intersect_objnames
 
 
 def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide=None):

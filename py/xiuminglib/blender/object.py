@@ -7,20 +7,15 @@ July 2017
 Contributor: Xingyuan Sun
 """
 
-import logging
 import re
 from os.path import abspath
 import numpy as np
 import bpy
 import bmesh
 from mathutils import Matrix, Vector
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-
-folder_names = abspath(__file__).split('/')
-thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def remove_objects(name_pattern, regex=False):
@@ -128,8 +123,7 @@ def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_v
 
     if len(obj_list) == 1:
         return obj_list[0]
-    else:
-        return obj_list
+    return obj_list
 
 
 def add_cylinder_between(pt1, pt2, r, name=None):
@@ -650,4 +644,4 @@ def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
     # Scene update necessary, as matrix_world is updated lazily
     scene.update()
 
-    logger.info("%s: Selected %s elements of '%s'", select_type, obj.name)
+    logger.info("Selected %s elements of '%s'", select_type, obj.name)

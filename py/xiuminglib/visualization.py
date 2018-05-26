@@ -8,6 +8,7 @@ June 2017
 from os import makedirs
 from os.path import dirname, exists
 from warnings import warn
+from pickle import dump
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -15,7 +16,6 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D # noqa; pylint: disable=unused-import
-import cv2
 
 
 def pyplot_wrapper(*args,
@@ -172,6 +172,8 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
             String
             Optional; defaults to './scatter_on_image.png'
     """
+    import cv2
+
     thickness = -1 # for filled circles
 
     # Standardize inputs
@@ -300,6 +302,8 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=N
             String
             Optional; defaults to None (no title)
     """
+    import cv2
+
     figsize = 50
     dc = 'r' # color
     ds = 4 # size of UV dots
@@ -341,7 +345,7 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=N
     if ft is not None:
         lines = []
         for vert_id in ft:
-            if len(vert_id) > 0:
+            if vert_id: # not empty
                 # For each face
                 ind = [i - 1 for i in vert_id]
                 n_verts = len(ind)
@@ -444,7 +448,7 @@ def axes3d_wrapper(
             Boolean
             Optional; defaults to False
         outpath: Path to which the visualization is saved
-            String
+            String ending with '.png' or '.pkl' (for offline interactive viewing)
             Optional; defaults to './plot.png'
     """
     fig = plt.figure(figsize=figsize)
@@ -524,13 +528,20 @@ def axes3d_wrapper(
             ax.plot([xb_], [yb_], [zb_], 'w')
 
     # Save plot
-    if views is None:
-        plt.savefig(outpath, bbox_inches='tight')
+    if outpath.endswith('.png'):
+        if views is None:
+            plt.savefig(outpath, bbox_inches='tight')
+        else:
+            for elev, azim in views:
+                ax.view_init(elev, azim)
+                plt.draw()
+                plt.savefig(outpath.replace('.png', '_elev%d_azim%d.png' % (elev, azim)),
+                            bbox_inches='tight')
+    elif outpath.endswith('.pkl'):
+        # FIXME: can't laod
+        with open(outpath, 'wb') as h:
+            dump(ax, h)
     else:
-        for elev, azim in views:
-            ax.view_init(elev, azim)
-            plt.draw()
-            plt.savefig(outpath.replace('.png', '_elev%d_azim%d.png' % (elev, azim)),
-                        bbox_inches='tight')
+        raise ValueError("`outpath` must end with either '.png' or '.pkl'")
 
     plt.close('all')

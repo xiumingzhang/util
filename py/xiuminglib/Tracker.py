@@ -5,15 +5,10 @@ Xiuming Zhang, MIT CSAIL
 November 2017
 """
 
-from os.path import abspath, join
-import logging
+from os.path import join
 import numpy as np
 import cv2
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 from xiuminglib import visualization as xvis
-
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
 
 
 class LucasKanadeTracker:

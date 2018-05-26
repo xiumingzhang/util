@@ -7,13 +7,11 @@ April 2018
 
 import sys
 from os.path import abspath
-import logging
 import re
 import numpy as np
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def find_extrema_in(arr, find_max=True, n=1):
@@ -66,7 +64,7 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
     import jsonpickle
     import yaml
 
-    thisfunc = thisfile + '->print_attrs()'
+    logger.name = thisfile + '->print_attrs()'
 
     if isinstance(excerpts, str):
         excerpts = [excerpts]
@@ -75,23 +73,22 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
     try:
         serialized = jsonpickle.encode(obj, max_depth=max_recursion_depth)
     except RecursionError as e:
-        logging.error("%s: %s: %s! Please specify a limit to retry",
-                      thisfunc, 'RecursionError', str(e))
+        logger.error("RecursionError: %s! Please specify a limit to retry",
+                     str(e))
         sys.exit(1)
 
     if excerpts is None:
         # Print all attributes
-        logging.info("%s: All attributes:", thisfunc)
+        logger.info("All attributes:")
         print(yaml.dump(yaml.load(serialized), indent=4))
     else:
         for x in excerpts:
             # For each attribute of interest, print excerpts containing it
-            logging.info("%s: Excerpt(s) containing '%s':", thisfunc, x)
+            logger.info("Excerpt(s) containing '%s':", x)
 
             mis = [m.start() for m in re.finditer(x, serialized)]
             if not mis:
-                logging.info(("%s: No matches! "
-                              "Retry maybe with deeper recursion"), thisfunc)
+                logger.info("%s: No matches! Retry maybe with deeper recursion")
             else:
                 for mii, mi in enumerate(mis):
                     # For each excerpt

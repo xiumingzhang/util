@@ -5,18 +5,13 @@ Xiuming Zhang, MIT CSAIL
 July 2017
 """
 
-import logging
 from os.path import abspath
 import numpy as np
 import bpy
 from mathutils import Vector
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-
-folder_names = abspath(__file__).split('/')
-thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def point_light_to(light, target):

@@ -5,14 +5,7 @@ Xiuming Zhang, MIT CSAIL
 November 2017
 """
 
-import logging
-from os.path import abspath
-from xml.etree.ElementTree import parse
 import numpy as np
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
-
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
 
 
 class PerspCamera(object):
@@ -145,6 +138,8 @@ class PerspCamera(object):
             xml_path: XML file path
                 String
         """
+        from xml.etree.ElementTree import parse
+
         tree = parse(xml_path)
 
         # Focal length

@@ -5,16 +5,10 @@ Xiuming Zhang, MIT CSAIL
 August 2017
 """
 
-import logging
-from os.path import abspath
 import numpy as np
 from scipy.sparse import issparse
 from scipy.sparse.linalg import eigsh
 from scipy.special import sph_harm
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
-
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
 
 
 def smooth_1d(arr, win_size, kernel_type='half'):
@@ -317,7 +311,8 @@ def unit_test(func_name):
 
         # Reconstruct data with only the top two PC's
         k = 2
-        pts_recon = pcs[:, :k].dot(projs[:k, :]) + np.tile(data_mean, (projs.shape[1], 1)).T
+        pts_recon = pcs[:, :k].dot(projs[:k, :]) + \
+            np.tile(data_mean, (projs.shape[1], 1)).T
         pdb.set_trace()
 
     elif func_name == 'matrix_for_discrete_fourier_transform':

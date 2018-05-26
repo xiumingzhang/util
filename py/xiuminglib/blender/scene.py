@@ -5,20 +5,14 @@ Xiuming Zhang, MIT CSAIL
 July 2017
 """
 
-import logging
 from os import makedirs, remove
 from os.path import abspath, dirname, exists, join
 from shutil import move
 from time import time
-import cv2
 import bpy
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-
-folder_names = abspath(__file__).split('/')
-thisfile = '/'.join(folder_names[folder_names.index('xiuminglib'):])
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def set_cycles(w=None, h=None,
@@ -218,6 +212,8 @@ def render(outpath, text=None, cam_names=None, hide=None):
         result_path: Path(s) to the rendering ('outpath' suffixed by camera name)
             String or list thereof
     """
+    import cv2
+
     logger.name = thisfile + '->render()'
 
     if isinstance(cam_names, str):
@@ -280,8 +276,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
 
     if len(result_path) == 1:
         return result_path[0]
-    else:
-        return result_path
+    return result_path
 
 
 # TODO change to depth-based

@@ -7,16 +7,12 @@ June 2017
 
 from os import makedirs
 from os.path import abspath, dirname, exists
-import logging
 from copy import deepcopy
 import numpy as np
 import cv2
-from scipy.interpolate import RectBivariateSpline, interp2d
-from scipy.ndimage.filters import minimum_filter, maximum_filter
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+from xiuminglib import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def arr2im(arr, vispath=None):
@@ -112,7 +108,6 @@ def remove_islands(im, min_n_pixels, connectivity=4):
         im_clean: Output image with small islands removed
             2D numpy array of 0's and 1's
     """
-
     # Validate inputs
     assert (len(im.shape) == 2), "'im' needs to have exactly two dimensions"
     assert np.array_equal(np.unique(im), np.array([0, 1])), "'im' needs to contain only 0's and 1's"
@@ -165,7 +160,9 @@ def query_float_locations(im, query_pts, method='bilinear'):
         interp_val: Interpolated values at query locations
             Numpy array of shape (n, c) or (c,)
     """
-    thisfunc = thisfile + '->query_float_locations()'
+    from scipy.interpolate import RectBivariateSpline, interp2d
+
+    logger.name = thisfile + '->query_float_locations()'
 
     # Figure out image size and number of channels
     if im.ndim == 3:
@@ -189,21 +186,23 @@ def query_float_locations(im, query_pts, method='bilinear'):
 
     # Querying one point, very likely in a loop -- no printing
     if is_one_point:
-        logging.getLogger().setLevel(logging.WARN)
+        import logging
+        logger.setLevel(logging.WARN)
 
     x = np.arange(h) + 0.5 # pixel center
     y = np.arange(w) + 0.5
     query_x = query_pts[:, 0]
     query_y = query_pts[:, 1]
 
-    if np.min(query_x) < 0 or np.max(query_x) > h or np.min(query_y) < 0 or np.max(query_y) > w:
-        logging.warning("%s: Sure you want to query points outside 'im'?", thisfunc)
+    if np.min(query_x) < 0 or np.max(query_x) > h or \
+            np.min(query_y) < 0 or np.max(query_y) > w:
+        logger.warning("Sure you want to query points outside 'im'?")
 
     if c == 1:
         # Single channel
         z = im
 
-        logging.info("%s: Interpolation (method: %s) started", thisfunc, method)
+        logger.info("Interpolation (method: %s) started", method)
 
         if method == 'spline':
             spline_obj = RectBivariateSpline(x, y, z)
@@ -216,18 +215,18 @@ def query_float_locations(im, query_pts, method='bilinear'):
         else:
             raise NotImplementedError("Other interplation methods")
 
-        logging.info("%s:     ... done", thisfunc)
+        logger.info("    ... done")
 
     else:
         # Multiple channels
-        logging.warning("%s: Support for 'im' having multiple channels has not been thoroughly tested!", thisfunc)
+        logger.warning("Support for 'im' having multiple channels has not been thoroughly tested!")
 
         interp_val = np.zeros((len(query_x), c))
         for i in range(c):
 
             z = im[:, :, i]
 
-            logging.info("%s: Interpolation (method: %s) started for channel %d/%d", thisfunc, method, i + 1, c)
+            logger.info("Interpolation (method: %s) started for channel %d/%d", method, i + 1, c)
 
             if method == 'spline':
                 spline_obj = RectBivariateSpline(x, y, z)
@@ -240,7 +239,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
             else:
                 raise NotImplementedError("Other interplation methods")
 
-            logging.info("%s:     ... done", thisfunc)
+            logger.info("    ... done")
 
     if is_one_point:
         interp_val = interp_val.reshape(c)
@@ -266,7 +265,9 @@ def find_local_extrema(im, want_maxima, kernel_size=3):
         is_extremum: Binary map indicating if each pixel is a local extremum
             Boolean numpy array of the same size as 'im'
     """
-    logging.error("find_local_extrema() not tested yet!")
+    from scipy.ndimage.filters import minimum_filter, maximum_filter
+
+    logger.error("find_local_extrema() not tested yet!")
 
     # Figure out image size and number of channels
     if im.ndim == 3:
