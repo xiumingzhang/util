@@ -14,7 +14,7 @@ import bpy
 import bmesh
 from mathutils import Matrix, Vector
 
-from xiuminglib import config
+import config
 logger, thisfile = config.create_logger(abspath(__file__))
 
 

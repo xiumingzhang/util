@@ -10,7 +10,7 @@ from os.path import abspath, basename, dirname, exists, join
 from shutil import copy
 import numpy as np
 
-from xiuminglib import config
+import config
 logger, thisfile = config.create_logger(abspath(__file__))
 
 

@@ -10,14 +10,14 @@ Feburary 2018
 from argparse import ArgumentParser
 from os import makedirs
 from os.path import exists, abspath, dirname
-import logging
 import numpy as np
 import OpenEXR
 import Imath
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+import config
+logger, thisfile = config.create_logger(abspath(__file__))
+logger.name = thisfile
+
 
 # Parse variables
 parser = ArgumentParser(description="Load OpenEXR image as dictionary of numpy arrays")
@@ -47,4 +47,4 @@ for c in f.header()['channels']:
 
 np.savez(outpath, **imgs)
 
-logging.info("%s: Generated %s", thisfile, outpath)
+logger.info("Generated %s", outpath)

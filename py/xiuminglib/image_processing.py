@@ -11,7 +11,7 @@ from copy import deepcopy
 import numpy as np
 import cv2
 
-from xiuminglib import config
+import config
 logger, thisfile = config.create_logger(abspath(__file__))
 
 

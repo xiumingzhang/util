@@ -11,7 +11,7 @@ from shutil import move
 from time import time
 import bpy
 
-from xiuminglib import config
+import config
 logger, thisfile = config.create_logger(abspath(__file__))
 
 

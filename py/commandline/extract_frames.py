@@ -8,12 +8,12 @@ May 2017
 from argparse import ArgumentParser
 from os import makedirs
 from os.path import exists, join, abspath
-import logging
 from cv2 import imwrite, VideoCapture
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+import config
+logger, thisfile = config.create_logger(abspath(__file__))
+logger.name = thisfile
+
 
 # Parse variables
 parser = ArgumentParser(description="Extract frames from a video file")
@@ -43,7 +43,7 @@ while vid.isOpened():
         break
     if frameidx % every == 0:
         outpath = join(outdir, str(frameidx_out).zfill(outlen) + '.png')
-        logging.info("%s: Frame %d saved as %s", thisfile, frameidx, outpath)
+        logger.info("Frame %d saved as %s", frameidx, outpath)
         imwrite('%s' % outpath, im)
         frameidx_out += 1
     frameidx += 1

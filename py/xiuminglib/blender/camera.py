@@ -15,7 +15,7 @@ from mathutils import Vector, Matrix, Quaternion
 from mathutils.bvhtree import BVHTree
 from xiuminglib.blender import object as xb_object
 
-from xiuminglib import config
+import config
 logger, thisfile = config.create_logger(abspath(__file__))
 
 

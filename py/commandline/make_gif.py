@@ -8,16 +8,16 @@ July 2017
 from argparse import ArgumentParser
 from os import makedirs
 from os.path import exists, join, abspath, dirname, basename
-import logging
 from shutil import rmtree
 from subprocess import call
 from random import choice
 from string import ascii_letters, digits
 import cv2
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
-thisfile = abspath(__file__)
+import config
+logger, thisfile = config.create_logger(abspath(__file__))
+logger.name = thisfile
+
 
 # Parse variables
 parser = ArgumentParser(description="Make annotated GIF from image-text pairs")
@@ -88,4 +88,4 @@ call(['convert', '-delay', str(gif_delay), '-loop', '0',
 # Clean up
 rmtree(tmpdir)
 
-logging.info("%s: Generated %s", thisfile, outpath)
+logger.info("Generated %s", outpath)
