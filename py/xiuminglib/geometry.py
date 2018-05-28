@@ -210,6 +210,53 @@ def moeller_trumbore(ray_orig, ray_dir, tri_v0, tri_v1, tri_v2):
     return u, v, t
 
 
+def ptcld2tdf(pts, res=128, center=False):
+    """
+    Convert point cloud to truncated distance function (TDF)
+        with maximum distance capped at 1 / res
+
+    Args:
+        pts: Cartesian coordinates in object space
+            n-by-3 array_like of floats
+        res: Resolution of the TDF
+            Integer
+            Optional; defaults to 128
+        center: Whether to center these points around object space origin
+            Boolean
+            Optional; defaults to False
+
+    Returns:
+        tdf: Output TDF
+            res-by-res-by-res numpy array of floats
+    """
+    pts = np.array(pts)
+
+    n_pts = pts.shape[0]
+
+    if center:
+        pts_center = np.mean(pts, axis=0)
+        pts -= np.tile(pts_center, (n_pts, 1))
+
+    tdf = np.ones((res, res, res)) / res
+    cnt = np.zeros((res, res, res))
+
+    # -0.5 to 0.5 in every dimension
+    extent = 2 * np.abs(pts).max()
+    pts_scaled = pts / extent
+
+    # Compute distance from center of each involved voxel to its surface points
+    for i in range(n_pts):
+        pt = pts_scaled[i, :]
+        ind = np.floor((pt + 0.5) * (res - 1)).astype(int)
+        v_ctr = (ind + 0.5) / (res - 1) - 0.5
+        dist = np.linalg.norm(pt - v_ctr)
+        n = cnt[ind[0], ind[1], ind[2]]
+        tdf[ind[0], ind[1], ind[2]] = (tdf[ind[0], ind[1], ind[2]] * n + dist) / (n + 1)
+        cnt[ind[0], ind[1], ind[2]] += 1
+
+    return tdf
+
+
 if __name__ == '__main__':
     # Unit tests
 

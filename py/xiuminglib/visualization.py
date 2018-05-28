@@ -545,3 +545,35 @@ def axes3d_wrapper(
         raise ValueError("`outpath` must end with either '.png' or '.pkl'")
 
     plt.close('all')
+
+
+def ptcld_as_isosurf(pts, out_obj, res=128, center=False):
+    """
+    Visualize point cloud as isosurface of its TDF
+
+    Args:
+        pts: Cartesian coordinates in object space
+            n-by-3 array_like of floats
+        out_obj: The output path of the surface .obj
+            String
+        res: Resolution of the TDF
+            Integer
+            Optional; defaults to 128
+        center: Whether to center these points around object space origin
+            Boolean
+            Optional; defaults to False
+    """
+    from skimage.measure import marching_cubes_lewiner
+    from trimesh import Trimesh
+    from trimesh.io.export import export_mesh
+    from xiuminglib import geometry as xgeo
+
+    # Point cloud to TDF
+    tdf = xgeo.ptcld2tdf(pts, res=res, center=center)
+
+    # Isosurface of TDF
+    vs, fs, ns, _ = marching_cubes_lewiner(
+        tdf, 0.999 / res, spacing=(1 / res, 1 / res, 1 / res))
+
+    mesh = Trimesh(vertices=vs, faces=fs, normals=ns)
+    export_mesh(mesh, out_obj)
