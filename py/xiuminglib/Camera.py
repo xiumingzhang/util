@@ -217,12 +217,12 @@ class PerspCamera(object):
             vhs = vhs[0, :]
         return vhs
 
-    def backproj(self, depth_im, fg_mask=None, depth_type='plane', space='object'):
+    def backproj(self, depth, fg_mask=None, depth_type='plane', space='object'):
         """
         Backproject depth map to 3D points
 
         Args:
-            depth_im: Depth map
+            depth: Depth map
                 2D numpy array of floats
             fg_mask: Backproject only pixels falling inside this foreground mask
                 2D numpy array of logicals
@@ -239,16 +239,16 @@ class PerspCamera(object):
                 N-by-3 numpy array of floats
         """
         if fg_mask is None:
-            fg_mask = np.ones(depth_im.shape, dtype=bool)
+            fg_mask = np.ones(depth.shape, dtype=bool)
         assert depth_type in ('ray', 'plane'), "Unrecognized depth type"
         assert space in ('object', 'camera'), "Unrecognized space"
 
         v_is, h_is = np.where(fg_mask)
         hs = h_is + 0.5
         vs = v_is + 0.5
-        h_c = (depth_im.shape[1] - 1) / 2
-        v_c = (depth_im.shape[0] - 1) / 2
-        zs = depth_im[fg_mask]
+        h_c = (depth.shape[1] - 1) / 2
+        v_c = (depth.shape[0] - 1) / 2
+        zs = depth[fg_mask]
 
         if depth_type == 'ray':
             d2 = np.power(vs - v_c, 2) + np.power(hs - h_c, 2)
