@@ -82,7 +82,7 @@ def gen_full_cmds(cmd_prefix, params_file, expect_file):
         with open(expect_file) as f:
             expects = f.readlines()
         assert len(params) == len(expects), \
-            "Lines of expect_file and params_file must correspond"
+            "Lines of `expect_file` and `params_file` must correspond"
     cmds, cmd_expects = [], []
     for i, x in enumerate(params):
         cmds.append('%s %s' % (cmd_prefix, x.strip()))
@@ -108,7 +108,7 @@ def main(args):
     if 'expect_file' in config['OPTIONAL']:
         expect_file = join(curr_dir, config['OPTIONAL']['expect_file'])
         if not exists(expect_file):
-            logging.warning("expect_file provided, but non-existent, so skipping no jobs")
+            logging.warning("`expect_file` provided, but non-existent, so skipping no jobs")
             expect_file = None
     else:
         expect_file = None
