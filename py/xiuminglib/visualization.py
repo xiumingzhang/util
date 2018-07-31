@@ -19,6 +19,7 @@ from mpl_toolkits.mplot3d import Axes3D # noqa; pylint: disable=unused-import
 
 
 def pyplot_wrapper(*args,
+                   ci=None,
                    func='plot',
                    labels=None,
                    legend_fontsize=20,
@@ -48,13 +49,16 @@ def pyplot_wrapper(*args,
     Args:
         *args, **kwargs: Positional and/or keyword parameters that the wrapped function takes
             See documentation for matplotlib.pyplot
+        ci: Confidence interval for x_i[j] is y_i[j] +/- ci[i][j]; effective only when `func` is 'plot'
+            List of floats for one line; list of lists of floats for multiple lines
+            Optional; defaults to None
         func: Which pyplot function to invoke
             'plot', 'hist', or 'bar'
             Optional; defaults to 'plot'
         labels: Labels for plot objects, to appear in the legend
             List of strings or None (no label for this object)
             Optional; defaults to None (no legend)
-        legend_loc: Legend location; effective only when labels is not None
+        legend_loc: Legend location; effective only when `labels` is not None
             'best', 'upper right', 'lower left', 'right', 'center left', 'lower center', 'upper center', 'center', etc.
             Optional; defaults to 'best'
         figsize: Width and height of the figure in inches
@@ -85,6 +89,9 @@ def pyplot_wrapper(*args,
             String
             Optional; defaults to './plot.png'
     """
+    if ci is not None:
+        assert func == 'plot', "CI makes sense only for `plot`"
+
     plt.figure(figsize=figsize)
     ax = plt.gca()
 
@@ -102,6 +109,30 @@ def pyplot_wrapper(*args,
         raise NotImplementedError(func)
 
     plot_objs = func(*args, **kwargs)
+
+    # Confidence intervals
+    if ci is not None:
+        # `func` is 'plot'
+        if isinstance(ci[0], (int, float)):
+            # List of numbers -> only one line
+            assert len(plot_objs) == 1, "Only one CI is provided, but there are more than one lines"
+            ci = np.array(ci)
+            assert (ci > 0).all(), "CI should be positive"
+            ci = [ci]
+        elif isinstance(ci[0], (list, np.ndarray)):
+            # List of lists -> multiple lines
+            assert len(ci) == len(plot_objs), "Numbers of CI's and lines are different"
+            ci = [np.array(x) for x in ci]
+            for x in ci:
+                assert (x > 0).all(), "CI should be positive"
+        else:
+            raise TypeError(ci)
+        # `ci` is now a list of numpy array(s)
+        for i, plot_obj in enumerate(plot_objs):
+            x, y = plot_obj.get_data()
+            ub = y + ci[i]
+            lb = y - ci[i]
+            plt.fill_between(x, ub, lb, color=plot_obj.get_c(), alpha=.5)
 
     # Legend
     if labels is not None:
