@@ -32,9 +32,11 @@ def pyplot_wrapper(*args,
                    ylabel=None,
                    ylabel_fontsize=20,
                    xticks=None,
+                   xticks_locations=None,
                    xticks_fontsize=10,
                    xticks_rotation=0,
                    yticks=None,
+                   yticks_locations=None,
                    yticks_fontsize=10,
                    yticks_rotation=0,
                    xlim=None,
@@ -73,6 +75,9 @@ def pyplot_wrapper(*args,
         xticks, yticks: Tick values of x- or y-axis
             Array_like
             Optional; defaults to None (auto)
+        xticks_locations, yticks_locations: Locations of the ticks
+            Array_like of floats
+            Optional; defaults to None (starting from 0, one next to another)
         *_fontsize: Font size
             Positive integer
             Optional
@@ -105,6 +110,8 @@ def pyplot_wrapper(*args,
         func = plt.hist
     elif func == 'bar':
         func = plt.bar
+    elif func == 'boxplot':
+        func = plt.boxplot
     else:
         raise NotImplementedError(func)
 
@@ -162,11 +169,15 @@ def pyplot_wrapper(*args,
     if xticks is None:
         plt.xticks(fontsize=xticks_fontsize, rotation=xticks_rotation)
     else:
-        plt.xticks(xticks, fontsize=xticks_fontsize, rotation=xticks_rotation)
+        if xticks_locations is None:
+            xticks_locations = range(len(xticks))
+        plt.xticks(xticks_locations, xticks, fontsize=xticks_fontsize, rotation=xticks_rotation)
     if yticks is None:
         plt.yticks(fontsize=yticks_fontsize, rotation=yticks_rotation)
     else:
-        plt.yticks(yticks, fontsize=yticks_fontsize, rotation=yticks_rotation)
+        if yticks_locations is None:
+            yticks_locations = range(len(yticks))
+        plt.yticks(yticks_locations, yticks, fontsize=yticks_fontsize, rotation=yticks_rotation)
 
     # Make directory, if necessary
     outdir = dirname(outpath)
