@@ -1,4 +1,4 @@
 # util
-My Python library and some utility bash functions
+My Python Library and Some Utility Bash Functions
 
-Local location: `$SHAPETIME_DIR/util`.
+Local location: `$SHAPETIME_DIR/util`
