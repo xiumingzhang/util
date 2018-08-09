@@ -37,7 +37,7 @@ def send_jobs(machine_list, curr_dir, pool_dir, prefix, dry_run=False, exec_args
 def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
     # Init
     machine_cmds, machine_expects = [], []
-    for n in range(n_machines):
+    for _ in range(n_machines):
         machine_cmds.append([])
         machine_expects.append([])
     #
