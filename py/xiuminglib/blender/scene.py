@@ -104,7 +104,12 @@ def set_cycles(w=None, h=None,
     logger.info("Cycles set up as rendering engine")
 
 
-def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_depth=None):
+def easyset(w=None, h=None,
+            n_samples=None,
+            ao=None,
+            color_mode=None,
+            file_format=None,
+            color_depth=None):
     """
     Set some of the scene attributes more easily
 
@@ -121,8 +126,11 @@ def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_dept
         color_mode: Color mode of rendering
             'BW', 'RGB', or 'RGBA'
             Optional; no change if not given
+        file_format: File format of the render
+            'PNG', 'OPEN_EXR', etc.
+            Optional; no change if not given
         color_depth: Color depth of rendering
-            '8' or '16'
+            '8' or '16' for .png; '16' or '32' for .exr
             Optional; no change if not given
     """
     scene = bpy.context.scene
@@ -148,6 +156,10 @@ def easyset(w=None, h=None, n_samples=None, ao=None, color_mode=None, color_dept
     # Color mode of rendering
     if color_mode is not None:
         scene.render.image_settings.color_mode = color_mode
+
+    # File format of the render
+    if file_format is not None:
+        scene.render.image_settings.file_format = file_format
 
     # Color depth of rendering
     if color_depth is not None:

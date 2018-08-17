@@ -144,7 +144,7 @@ if __name__ == '__main__':
     parser.add_argument('--exec_seg', type=int,
                         help="for exec_client: segment number for updating progress", default=-1)
     parser.add_argument('--exec_thread', type=int,
-                        help="for exec_client: thred number", default=-1)
+                        help="for exec_client: thread number", default=-1)
     parser.add_argument('--exec_cap', type=int,
                         help="for exec_client: cap the task list to test on small batches", default=-1)
     parser.add_argument('--exec_dryrun', action='store_true',

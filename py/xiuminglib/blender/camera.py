@@ -191,8 +191,16 @@ def point_camera_to(cam, xyz_target, up=(0, 0, 1)):
     cam_mat, _, _ = get_camera_matrix(cam)
     up_proj = cam_mat * up.to_4d()
     orig_proj = cam_mat * Vector((0, 0, 0)).to_4d()
-    up_proj = Vector((up_proj[0] / up_proj[2], up_proj[1] / up_proj[2])) - \
-        Vector((orig_proj[0] / orig_proj[2], orig_proj[1] / orig_proj[2]))
+    try:
+        up_proj = Vector((up_proj[0] / up_proj[2], up_proj[1] / up_proj[2])) - \
+            Vector((orig_proj[0] / orig_proj[2], orig_proj[1] / orig_proj[2]))
+    except ZeroDivisionError:
+        logger.error(
+            ("w in homogeneous coordinates is 0; "
+             "camera coincides with the points to project? "
+             "So can't rotate camera to ensure up vector")
+        )
+        return cam
     # +------->
     # |
     # |
@@ -288,7 +296,7 @@ def correct_sensor_height(cam):
 
 def get_camera_matrix(cam, keep_disparity=False):
     """
-    Get camera matrix, intrinsics and extrinsics from Blender camera
+    Get camera matrix, intrinsics, and extrinsics from a Blender camera
         You can ask for a 4-by-4 projection that projects (x, y, z, 1) to
             (u, v, 1, d), where d is the disparity, reciprocal of depth
 
