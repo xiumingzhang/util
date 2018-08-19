@@ -257,6 +257,36 @@ def ptcld2tdf(pts, res=128, center=False):
     return tdf
 
 
+def angle_between(v1, v2, in_radians=True):
+    """
+    Computes the angle between two vectors
+
+    Args:
+        v1, v2: Vectors of the same dimensionality
+            Array_like of floats
+        in_radians: Whether results are reported in radians
+            Boolean
+            Optional; defaults to True
+
+    Returns:
+        deg: Degree between the vectors, in radians or degrees
+            Float
+    """
+    # Validate inputs
+    v1 = np.array(v1)
+    v2 = np.array(v2)
+    assert (v1.shape == v2.shape), "Vectors must be of same length"
+
+    v1 /= np.linalg.norm(v1)
+    v2 /= np.linalg.norm(v2)
+
+    deg = np.arccos(np.clip(np.dot(v1, v2), -1.0, 1.0))
+    if not in_radians:
+        deg *= 180 / np.pi
+
+    return deg
+
+
 if __name__ == '__main__':
     # Unit tests
 

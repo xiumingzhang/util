@@ -69,7 +69,7 @@ def add_camera(
         cam: Handle of added camera
             bpy_types.Object
     """
-    logger.name = thisfile + '->add_camera()'
+    logger_name = thisfile + '->add_camera()'
 
     bpy.ops.object.camera_add()
     cam = bpy.context.active_object
@@ -88,6 +88,7 @@ def add_camera(
     cam.data.clip_start = clip_start
     cam.data.clip_end = clip_end
 
+    logger.name = logger_name
     logger.info("Camera '%s' added", cam.name)
 
     return cam
@@ -172,7 +173,7 @@ def point_camera_to(cam, xyz_target, up=(0, 0, 1)):
             Array_like of 3 floats
             Optional; defaults to (0, 0, 1)
     """
-    logger.name = thisfile + '->point_camera_to()'
+    logger_name = thisfile + '->point_camera_to()'
 
     up = Vector(up)
     xyz_target = Vector(xyz_target)
@@ -183,6 +184,7 @@ def point_camera_to(cam, xyz_target, up=(0, 0, 1)):
     # world +z, when projected, aligns with camera +y (i.e., points up in image plane)
     track = '-Z'
     rot_quat = direction.to_track_quat(track, 'Y')
+    cam.rotation_euler = (0, 0, 0)
     cam.rotation_euler.rotate(rot_quat)
 
     # Further rotate camera so that world `up`, when projected, points up on image plane
@@ -195,11 +197,14 @@ def point_camera_to(cam, xyz_target, up=(0, 0, 1)):
         up_proj = Vector((up_proj[0] / up_proj[2], up_proj[1] / up_proj[2])) - \
             Vector((orig_proj[0] / orig_proj[2], orig_proj[1] / orig_proj[2]))
     except ZeroDivisionError:
+        logger.name = logger_name
         logger.error(
             ("w in homogeneous coordinates is 0; "
-             "camera coincides with the points to project? "
+             "camera coincides with the point to project? "
              "So can't rotate camera to ensure up vector")
         )
+        logger.info("Camera '%s' pointed to %s, but with no guarantee on up vector",
+                    cam.name, tuple(xyz_target))
         return cam
     # +------->
     # |
@@ -213,6 +218,7 @@ def point_camera_to(cam, xyz_target, up=(0, 0, 1)):
     a = Vector((0, 1)).angle_signed(up_proj) # clockwise is positive
     cam.rotation_euler.rotate(Quaternion(direction, a))
 
+    logger.name = logger_name
     logger.info("Camera '%s' pointed to %s with world %s pointing up",
                 cam.name, tuple(xyz_target), tuple(up))
 
@@ -276,7 +282,7 @@ def correct_sensor_height(cam):
         cam: Camera object
             bpy_types.Object
     """
-    logger.name = thisfile + '->correct_sensor_height()'
+    logger_name = thisfile + '->correct_sensor_height()'
 
     # Camera
     sensor_width_mm = cam.data.sensor_width
@@ -291,6 +297,7 @@ def correct_sensor_height(cam):
     sensor_height_mm = sensor_width_mm * h / w / pixel_aspect_ratio
     cam.data.sensor_height = sensor_height_mm
 
+    logger.name = logger_name
     logger.info("Sensor height changed to %f", sensor_height_mm)
 
 
@@ -315,7 +322,7 @@ def get_camera_matrix(cam, keep_disparity=False):
         ext_mat: Camera extrinsics
             4-by-4 Matrix if `keep_disparity`; else, 3-by-4
     """
-    logger.name = thisfile + '->get_camera_matrix()'
+    logger_name = thisfile + '->get_camera_matrix()'
 
     # Necessary scene update
     scene = bpy.context.scene
@@ -414,6 +421,7 @@ def get_camera_matrix(cam, keep_disparity=False):
     # Camera matrix
     cam_mat = int_mat * ext_mat
 
+    logger.name = logger_name
     logger.info("Done computing camera matrix for '%s'", cam.name)
     logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
@@ -445,7 +453,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
     """
     import cv2
 
-    logger.name = thisfile + '->get_camera_zbuffer()'
+    logger_name = thisfile + '->get_camera_zbuffer()'
 
     # Validate and standardize error-prone inputs
     if hide is not None:
@@ -525,6 +533,7 @@ def get_camera_zbuffer(cam, save_to=None, hide=None):
         # User wants it -- rename
         rename(exr_path, outpath + '.exr')
 
+    logger.name = logger_name
     logger.info("Got z-buffer of camera '%s'", cam.name)
     logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
@@ -562,7 +571,7 @@ def backproject_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
         intersect_objnames: Name(s) of object(s) responsible for intersections
             String or None (if no intersections) or list thereof
     """
-    logger.name = thisfile + '->backproject_uv_to_3d()'
+    logger_name = thisfile + '->backproject_uv_to_3d()'
 
     # Standardize inputs
     uvs = np.array(uvs).reshape(-1, 2)
@@ -627,6 +636,7 @@ def backproject_uv_to_3d(uvs, cam, obj_names=None, world_coords=False):
         xyzs[i] = first_intersect
         intersect_objnames[i] = first_intersect_objname
 
+    logger.name = logger_name
     logger.info("Backprojection done with camera '%s'", cam.name)
     logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
@@ -666,7 +676,7 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide
         visible_vert_ind: Indices of vertices that are visible
             List of non-negative integers
     """
-    logger.name = thisfile + '->get_visible_vertices()'
+    logger_name = thisfile + '->get_visible_vertices()'
 
     scene = bpy.context.scene
     w, h = scene.render.resolution_x, scene.render.resolution_y
@@ -705,6 +715,7 @@ def get_visible_vertices(cam, obj, ignore_occlusion=False, perc_z_eps=1e-6, hide
                 if (z - z_min) / z_min < perc_z_eps:
                     visible_vert_ind.append(bv.index)
 
+    logger.name = logger_name
     logger.info("Visibility test done with camera '%s'", cam.name)
     logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
@@ -733,7 +744,7 @@ def get_2d_bounding_box(obj, cam):
             |
             v v (0, h)
     """
-    logger.name = thisfile + '->get_2d_bounding_box()'
+    logger_name = thisfile + '->get_2d_bounding_box()'
 
     scene = bpy.context.scene
     w, h = scene.render.resolution_x, scene.render.resolution_y
@@ -758,6 +769,7 @@ def get_2d_bounding_box(obj, cam):
         np.array([u_max, v_max]),
         np.array([u_min, v_max])))
 
+    logger.name = logger_name
     logger.info("Got 2D bounding box of '%s' in camera '%s'", obj.name, cam.name)
     logger.warning("    ... using w = %d; h = %d", w * scale, h * scale)
 
