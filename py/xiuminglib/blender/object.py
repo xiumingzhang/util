@@ -339,7 +339,7 @@ def color_vertices(obj, vert_ind, colors):
         vert_ind: Index/indices of vertex/vertices to color
             Integer or list thereof
         colors: RGB value(s) to paint on vertex/vertices
-            Tuple of three/four floats in [0, 1] or list thereof
+            Tuple of three floats in [0, 1] or list thereof
                 - If one tuple, this color will be applied to all
                 - If list of tuples, must be of same length as vert_ind
     """
@@ -355,9 +355,10 @@ def color_vertices(obj, vert_ind, colors):
     for i, c in enumerate(colors):
         c = tuple(c)
         if len(c) == 3:
-            colors[i] = c + (1,)
-        elif len(c) == 4:
-            colors[i] = c
+            pass
+            # colors[i] = c + (1,)
+        # elif len(c) == 4: # FIXME: some Blender version needs 4-tuples?
+        #     colors[i] = c
         else:
             raise ValueError("Wrong color length: %d" % len(c))
     if any(x > 1 for c in colors for x in c):
