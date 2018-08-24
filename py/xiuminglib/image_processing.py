@@ -162,7 +162,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
     """
     from scipy.interpolate import RectBivariateSpline, interp2d
 
-    logger.name = thisfile + '->query_float_locations()'
+    logger_name = thisfile + '->query_float_locations()'
 
     # Figure out image size and number of channels
     if im.ndim == 3:
@@ -186,8 +186,8 @@ def query_float_locations(im, query_pts, method='bilinear'):
 
     # Querying one point, very likely in a loop -- no printing
     if is_one_point:
-        import logging
-        logger.setLevel(logging.WARN)
+        logger.name = logger_name
+        logger.setLevel(config.logging_warn)
 
     x = np.arange(h) + 0.5 # pixel center
     y = np.arange(w) + 0.5
@@ -196,12 +196,14 @@ def query_float_locations(im, query_pts, method='bilinear'):
 
     if np.min(query_x) < 0 or np.max(query_x) > h or \
             np.min(query_y) < 0 or np.max(query_y) > w:
+        logger.name = logger_name
         logger.warning("Sure you want to query points outside 'im'?")
 
     if c == 1:
         # Single channel
         z = im
 
+        logger.name = logger_name
         logger.info("Interpolation (method: %s) started", method)
 
         if method == 'spline':
@@ -215,10 +217,12 @@ def query_float_locations(im, query_pts, method='bilinear'):
         else:
             raise NotImplementedError("Other interplation methods")
 
+        logger.name = logger_name
         logger.info("    ... done")
 
     else:
         # Multiple channels
+        logger.name = logger_name
         logger.warning("Support for 'im' having multiple channels has not been thoroughly tested!")
 
         interp_val = np.zeros((len(query_x), c))
@@ -226,6 +230,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
 
             z = im[:, :, i]
 
+            logger.name = logger_name
             logger.info("Interpolation (method: %s) started for channel %d/%d", method, i + 1, c)
 
             if method == 'spline':
@@ -239,6 +244,7 @@ def query_float_locations(im, query_pts, method='bilinear'):
             else:
                 raise NotImplementedError("Other interplation methods")
 
+            logger.name = logger_name
             logger.info("    ... done")
 
     if is_one_point:
@@ -267,6 +273,9 @@ def find_local_extrema(im, want_maxima, kernel_size=3):
     """
     from scipy.ndimage.filters import minimum_filter, maximum_filter
 
+    logger_name = thisfile + '->find_local_extrema()'
+
+    logger.name = logger_name
     logger.error("find_local_extrema() not tested yet!")
 
     # Figure out image size and number of channels
@@ -365,3 +374,44 @@ def compute_gradients(im):
         grad_orient = grad_orient[:, :, 0]
 
     return grad_mag, grad_orient
+
+
+def exr2png(exr_path, map_type, outpath):
+    """
+    Convert a .exr map to a .png map, by scaling and offsetting
+
+    Args:
+        exr_path: Path to the .exr file to convert
+            String
+        map_type: Map type
+            'depth' or 'normal'
+        outpath: Path to the result .png file
+            String
+    """
+    logger_name = thisfile + '->exr2png()'
+
+    if map_type not in ('depth', 'normal'):
+        raise NotImplementedError(map_type)
+
+    arr = cv2.imread(exr_path, cv2.IMREAD_UNCHANGED)
+
+    if map_type == 'normal':
+        # [-1, 1]
+        is_bg = np.linalg.norm(arr, axis=2) == 0
+        is_bg = np.dstack((is_bg, is_bg, is_bg))
+        im = ((arr / 2 + 0.5) * 255).astype(int)
+        im[is_bg] = 0
+    else:
+        assert (arr[..., 0] == arr[..., 1]).all() and (arr[..., 0] == arr[..., 2]).all(), \
+            "A valid depth map must have all three channels the same"
+        arr = arr[..., 0]
+        is_fg = arr < arr.max()
+        min_val, max_val = arr[is_fg].min(), arr[is_fg].max()
+        im = np.zeros(arr.shape)
+        im[is_fg] = (max_val - arr[is_fg]) / (max_val - min_val)
+        im = (255 * im).astype(int)
+
+    cv2.imwrite(outpath, im)
+
+    logger.name = logger_name
+    logger.info("%s converted to %s", exr_path, outpath)

@@ -19,17 +19,16 @@ import config
 logger, thisfile = config.create_logger(abspath(__file__))
 
 
-def add_camera(
-        xyz=(0, 0, 0),
-        rot_vec_rad=(0, 0, 0),
-        name=None,
-        proj_model='PERSP',
-        f=35,
-        sensor_fit='HORIZONTAL',
-        sensor_width=32,
-        sensor_height=18,
-        clip_start=0.1,
-        clip_end=100):
+def add_camera(xyz=(0, 0, 0),
+               rot_vec_rad=(0, 0, 0),
+               name=None,
+               proj_model='PERSP',
+               f=35,
+               sensor_fit='HORIZONTAL',
+               sensor_width=32,
+               sensor_height=18,
+               clip_start=0.1,
+               clip_end=100):
     """
     Add camera to current scene
 
@@ -94,16 +93,15 @@ def add_camera(
     return cam
 
 
-def easyset(
-        cam,
-        xyz=None,
-        rot_vec_rad=None,
-        name=None,
-        proj_model=None,
-        f=None,
-        sensor_fit=None,
-        sensor_width=None,
-        sensor_height=None):
+def easyset(cam,
+            xyz=None,
+            rot_vec_rad=None,
+            name=None,
+            proj_model=None,
+            f=None,
+            sensor_fit=None,
+            sensor_width=None,
+            sensor_height=None):
     """
     Set camera parameters more easily
 

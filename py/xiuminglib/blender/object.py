@@ -63,7 +63,12 @@ def remove_objects(name_pattern, regex=False):
     logger.info("Removed from scene: %s", removed)
 
 
-def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_vec=(0, 0, 0), scale=1, name=None):
+def import_object(model_path,
+                  rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+                  trans_vec=(0, 0, 0),
+                  scale=1,
+                  merge=False,
+                  name=None):
     """
     Import external object to current scene, the low-level way
 
@@ -79,6 +84,9 @@ def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_v
         scale: Scale of the object
             Float
             Optional; defaults to 1
+        merge: Merge objects into one
+            Boolean
+            Optional; defaults to False
         name: Object name after import
             String
             Optional; defaults to name specified in model
@@ -94,6 +102,17 @@ def import_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)), trans_v
         bpy.ops.import_scene.obj(filepath=model_path, axis_forward='-Z', axis_up='Y')
     else:
         raise NotImplementedError(".%s" % model_path.split('.')[-1])
+
+    # Merge, if asked to
+    if merge and len(bpy.context.selected_objects) > 1:
+        objs_to_merge = bpy.context.selected_objects
+        context = bpy.context.copy()
+        context['active_object'] = objs_to_merge[0]
+        context['selected_objects'] = objs_to_merge
+        context['selected_editable_bases'] = [bpy.context.scene.object_bases[o.name] for o in objs_to_merge]
+        bpy.ops.object.join(context)
+        objs_to_merge[0].name = 'merged' # change object name
+        # objs_to_merge[0].data.name = 'merged' # change mesh name
 
     obj_list = []
     for i, obj in enumerate(bpy.context.selected_objects):

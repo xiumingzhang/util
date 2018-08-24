@@ -2,6 +2,9 @@ import logging
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 
+logging_warn = logging.WARN
+
+
 def create_logger(file_abspath, level=logging.INFO):
     logging.basicConfig(level=level)
     logger = logging.getLogger()
