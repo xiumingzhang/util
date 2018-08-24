@@ -378,7 +378,11 @@ def compute_gradients(im):
 
 def exr2png(exr_path, map_type, outpath):
     """
-    Convert a .exr map to a .png map, by scaling and offsetting
+    Convert a .exr map to a .png map, by scaling, offsetting, and inverting
+        For depth, background is black; close to camera is bright, and far away is dark,
+            as a result of inverting
+        For normal, background is black; inverting is applied to comply with industry
+            standards (e.g., AE)
 
     Args:
         exr_path: Path to the .exr file to convert
@@ -393,14 +397,15 @@ def exr2png(exr_path, map_type, outpath):
     if map_type not in ('depth', 'normal'):
         raise NotImplementedError(map_type)
 
-    arr = cv2.imread(exr_path, cv2.IMREAD_UNCHANGED)
+    arr = cv2.imread(exr_path, cv2.IMREAD_UNCHANGED) # BGR
 
     if map_type == 'normal':
         # [-1, 1]
         is_bg = np.linalg.norm(arr, axis=2) == 0
         is_bg = np.dstack((is_bg, is_bg, is_bg))
-        im = ((arr / 2 + 0.5) * 255).astype(int)
+        im = ((1 - (arr / 2 + 0.5)) * 255).astype(int)
         im[is_bg] = 0
+        cv2.imwrite(outpath, im) # BGR
     else:
         assert (arr[..., 0] == arr[..., 1]).all() and (arr[..., 0] == arr[..., 2]).all(), \
             "A valid depth map must have all three channels the same"
@@ -410,8 +415,7 @@ def exr2png(exr_path, map_type, outpath):
         im = np.zeros(arr.shape)
         im[is_fg] = (max_val - arr[is_fg]) / (max_val - min_val)
         im = (255 * im).astype(int)
-
-    cv2.imwrite(outpath, im)
+        cv2.imwrite(outpath, im)
 
     logger.name = logger_name
     logger.info("%s converted to %s", exr_path, outpath)

@@ -270,7 +270,8 @@ def render(outpath, text=None, cam_names=None, hide=None):
 
 def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     """
-    Render depth map of the specified object(s) from the specified camera
+    Render raw (.exr) depth map of the specified object(s) from the specified camera
+        See ../image_processing.py->exr2png() for how to convert it to a depth *image*
 
     Args:
         outpath: Where to save the .exr depth map
@@ -339,7 +340,7 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
 
 def render_mask(outpath, cam=None, obj_names=None):
     """
-    Render binary masks of objects from the specified camera
+    Render binary mask of objects from the specified camera
 
     Args:
         outpath: Path to save render to, e.g., '~/foo.png'
@@ -366,10 +367,10 @@ def render_mask(outpath, cam=None, obj_names=None):
     mask = np.zeros(is_fg.shape)
     mask[is_fg] = 255
 
+    # Write to disk
     outdir = dirname(outpath)
     if not exists(outdir):
         makedirs(outdir)
-
     cv2.imwrite(outpath, mask)
 
     logger.name = logger_name
@@ -379,8 +380,9 @@ def render_mask(outpath, cam=None, obj_names=None):
 
 def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
     """
-    Render normal map of the specified object(s) from the specified camera
-        RGB at each pixel is the (almost unit) normal vector
+    Render raw (.exr) normal map of the specified object(s) from the specified camera
+        RGB at each pixel is the (almost unit) normal vector at that location
+        See ../image_processing.py->exr2png() for how to convert it to a normal *image*
 
     Args:
         outpath: Where to save the .exr (i.e., raw) normal map
