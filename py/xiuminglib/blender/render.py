@@ -268,7 +268,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
     return result_path
 
 
-def _preproc_inputs(cam, obj_names):
+def _standardize_inputs(cam, obj_names):
     if cam is None:
         cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
         assert (len(cams) == 1), ("There should be exactly one camera in the scene, "
@@ -303,10 +303,12 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     """
     logger_name = thisfile + '->render_depth()'
 
-    cam, obj_names = _preproc_inputs(cam, obj_names)
+    cam, obj_names = _standardize_inputs(cam, obj_names)
 
     scene = bpy.context.scene
 
+    # Use Blender Render for anti-aliased results -- faster than Cycles,
+    # which needs >1 samples to figure out object boundary
     scene.render.engine = 'BLENDER_RENDER'
     scene.render.alpha_mode = 'TRANSPARENT'
 
@@ -352,9 +354,9 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     logger.warning("    ..., and the scene node tree has changed")
 
 
-def render_mask(outpath, cam=None, obj_names=None):
+def render_mask(outpath, cam=None, obj_names=None, soft=False):
     """
-    Render binary mask of objects from the specified camera,
+    Render binary or soft mask of objects from the specified camera,
         with bright being the foreground
 
     Args:
@@ -366,16 +368,24 @@ def render_mask(outpath, cam=None, obj_names=None):
         obj_names: Name(s) of object(s) of interest
             String or list thereof
             Optional; defaults to None (all objects)
+        soft: Whether to render the mask soft or not
+            Boolean
+            Optional; defaults to False
     """
     logger_name = thisfile + '->render_mask()'
 
-    cam, obj_names = _preproc_inputs(cam, obj_names)
+    cam, obj_names = _standardize_inputs(cam, obj_names)
 
     scene = bpy.context.scene
 
-    scene.render.engine = 'CYCLES'
-    scene.cycles.film_transparent = True
-    scene.cycles.samples = 1
+    if soft:
+        scene.render.engine = 'BLENDER_RENDER'
+        scene.render.alpha_mode = 'TRANSPARENT'
+    else:
+        scene.render.engine = 'CYCLES'
+        scene.cycles.film_transparent = True
+        # Anti-aliased edges are built up by averaging multiple samples
+        scene.cycles.samples = 1
 
     # Set active camera
     scene.camera = cam
@@ -435,7 +445,7 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
 
     logger_name = thisfile + '->render_normal()'
 
-    cam, obj_names = _preproc_inputs(cam, obj_names)
+    cam, obj_names = _standardize_inputs(cam, obj_names)
 
     scene = bpy.context.scene
 
@@ -484,8 +494,7 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
     else:
         scene.render.engine = 'CYCLES'
         scene.cycles.film_transparent = True
-        # FIXME: alpha pass is binary
-        scene.cycles.samples = 1
+        scene.cycles.samples = 16 # for anti-aliased edges
 
     # Render
     bpy.ops.render.render(write_still=True)
