@@ -268,6 +268,21 @@ def render(outpath, text=None, cam_names=None, hide=None):
     return result_path
 
 
+def _preproc_inputs(cam, obj_names):
+    if cam is None:
+        cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
+        assert (len(cams) == 1), ("There should be exactly one camera in the scene, "
+                                  "when 'cam' is not given")
+        cam = cams[0]
+
+    if isinstance(obj_names, str):
+        obj_names = [obj_names]
+    elif obj_names is None:
+        obj_names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+
+    return cam, obj_names
+
+
 def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     """
     Render raw (.exr) depth map of the specified object(s) from the specified camera
@@ -288,23 +303,17 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     """
     logger_name = thisfile + '->render_depth()'
 
-    if cam is None:
-        cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
-        assert (len(cams) == 1), ("There should be exactly one camera in the scene, "
-                                  "when 'cam' is not given")
-        cam = cams[0]
-
-    if isinstance(obj_names, str):
-        obj_names = [obj_names]
-    elif obj_names is None:
-        obj_names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+    cam, obj_names = _preproc_inputs(cam, obj_names)
 
     scene = bpy.context.scene
-    scene.cycles.samples = 1 # engine not necessarily being Cycles
+
+    scene.render.engine = 'BLENDER_RENDER'
+    scene.render.alpha_mode = 'TRANSPARENT'
 
     # Set active camera
     scene.camera = cam
 
+    # Hide objects to ignore
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
             obj.hide_render = obj.name not in obj_names
@@ -316,14 +325,19 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     scene.use_nodes = True
     node_tree = scene.node_tree
     nodes = node_tree.nodes
+    nodes.new('CompositorNodeSetAlpha')
     nodes.new('CompositorNodeOutputFile')
+    node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
+                        nodes['Set Alpha'].inputs['Alpha'])
+    node_tree.links.new(nodes['Render Layers'].outputs['Z'],
+                        nodes['Set Alpha'].inputs['Image'])
+    node_tree.links.new(nodes['Set Alpha'].outputs['Image'],
+                        nodes['File Output'].inputs['Image'])
     nodes['File Output'].format.file_format = 'OPEN_EXR'
     nodes['File Output'].format.color_depth = '32'
-    nodes['File Output'].format.color_mode = 'RGB'
+    nodes['File Output'].format.color_mode = 'RGBA'
     nodes['File Output'].base_path = '/tmp/%s' % time()
     scene.render.filepath = '/tmp/%s' % time()
-    node_tree.links.new(nodes['Render Layers'].outputs['Z'],
-                        nodes['File Output'].inputs['Image'])
 
     # Render
     bpy.ops.render.render(write_still=True)
@@ -340,7 +354,8 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
 
 def render_mask(outpath, cam=None, obj_names=None):
     """
-    Render binary mask of objects from the specified camera
+    Render binary mask of objects from the specified camera,
+        with bright being the foreground
 
     Args:
         outpath: Path to save render to, e.g., '~/foo.png'
@@ -352,26 +367,44 @@ def render_mask(outpath, cam=None, obj_names=None):
             String or list thereof
             Optional; defaults to None (all objects)
     """
-    import numpy as np
-    import cv2
-
     logger_name = thisfile + '->render_mask()'
 
-    # Render depth
-    depth_path = '/tmp/%s.exr' % time()
-    render_depth(depth_path, cam=cam, obj_names=obj_names, ray_depth=False)
+    cam, obj_names = _preproc_inputs(cam, obj_names)
 
-    # Binarize depth into mask
-    depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)[..., 0]
-    is_fg = depth < depth.max()
-    mask = np.zeros(is_fg.shape)
-    mask[is_fg] = 255
+    scene = bpy.context.scene
 
-    # Write to disk
-    outdir = dirname(outpath)
-    if not exists(outdir):
-        makedirs(outdir)
-    cv2.imwrite(outpath, mask)
+    scene.render.engine = 'CYCLES'
+    scene.cycles.film_transparent = True
+    scene.cycles.samples = 1
+
+    # Set active camera
+    scene.camera = cam
+
+    # Hide objects to ignore
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            obj.hide_render = obj.name not in obj_names
+
+    # Set nodes for (binary) alpha pass rendering
+    scene.use_nodes = True
+    node_tree = scene.node_tree
+    nodes = node_tree.nodes
+    nodes.new('CompositorNodeOutputFile')
+    node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
+                        nodes['File Output'].inputs['Image'])
+    nodes['File Output'].format.file_format = 'PNG'
+    nodes['File Output'].format.color_depth = '16'
+    nodes['File Output'].format.color_mode = 'RGB'
+    nodes['File Output'].base_path = '/tmp/%s' % time()
+    scene.render.filepath = '/tmp/%s' % time()
+
+    # Render
+    bpy.ops.render.render(write_still=True)
+
+    # Move from temporary directory
+    if not outpath.endswith('.png'):
+        outpath += '.png'
+    move(join(nodes['File Output'].base_path, 'Image0001.png'), outpath)
 
     logger.name = logger_name
     logger.info("Binary mask of %s rendered through '%s'", obj_names, cam.name)
@@ -391,24 +424,18 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
             bpy_types.Object or None
             Optional; defaults to None (the only camera in scene)
         obj_names: Name(s) of object(s) of interest
-            String or list thereof
+            String or list thereof. Use 'ref-ball' for reference normal ball
             Optional; defaults to None (all objects)
         camera_space: Whether to render normal in the camera or world space
             Boolean
             Optional; defaults to True
     """
+    from xiuminglib.blender.object import add_sphere
+    from xiuminglib.blender.camera import point_camera_to, get_2d_bounding_box
+
     logger_name = thisfile + '->render_normal()'
 
-    if cam is None:
-        cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
-        assert (len(cams) == 1), ("There should be exactly one camera in the scene, "
-                                  "when 'cam' is not given")
-        cam = cams[0]
-
-    if isinstance(obj_names, str):
-        obj_names = [obj_names]
-    elif obj_names is None:
-        obj_names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+    cam, obj_names = _preproc_inputs(cam, obj_names)
 
     scene = bpy.context.scene
 
@@ -420,28 +447,45 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
         if obj.type == 'MESH':
             obj.hide_render = obj.name not in obj_names
 
+    # Add reference normal ball
+    if 'ref-ball' in obj_names:
+        world_origin = (0, 0, 0)
+        sphere = add_sphere(location=world_origin)
+        point_camera_to(cam, world_origin, up=(0, 0, 1)) # point camera to there
+        # Decide scale of the ball so that it, when projected, fits into the frame
+        bbox = get_2d_bounding_box(sphere, cam)
+        s = max((bbox[1, 0] - bbox[0, 0]) / scene.render.resolution_x,
+                (bbox[3, 1] - bbox[0, 1]) / scene.render.resolution_y) * 1.2
+        sphere.scale = (1 / s, 1 / s, 1 / s)
+
     # Set up scene node tree
     scene.use_nodes = True
     node_tree = scene.node_tree
     nodes = node_tree.nodes
     scene.render.layers['RenderLayer'].use_pass_normal = True
+    nodes.new('CompositorNodeSetAlpha')
     nodes.new('CompositorNodeOutputFile')
+    node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
+                        nodes['Set Alpha'].inputs['Alpha'])
+    node_tree.links.new(nodes['Render Layers'].outputs['Normal'],
+                        nodes['Set Alpha'].inputs['Image'])
+    node_tree.links.new(nodes['Set Alpha'].outputs['Image'],
+                        nodes['File Output'].inputs['Image'])
     nodes['File Output'].format.file_format = 'OPEN_EXR'
     nodes['File Output'].format.color_depth = '32'
-    nodes['File Output'].format.color_mode = 'RGB'
+    nodes['File Output'].format.color_mode = 'RGBA' # A for anti-aliasing
     nodes['File Output'].base_path = '/tmp/%s' % time()
     scene.render.filepath = '/tmp/%s' % time()
-    node_tree.links.new(nodes['Render Layers'].outputs['Normal'],
-                        nodes['File Output'].inputs['Image'])
 
     # Select rendering engine based on whether camera or object space is desired
     if camera_space:
         scene.render.engine = 'BLENDER_RENDER'
+        scene.render.alpha_mode = 'TRANSPARENT'
     else:
         scene.render.engine = 'CYCLES'
+        scene.cycles.film_transparent = True
+        # FIXME: alpha pass is binary
         scene.cycles.samples = 1
-
-    # scene.render.use_antialiasing = False
 
     # Render
     bpy.ops.render.render(write_still=True)
@@ -454,3 +498,22 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
     logger.name = logger_name
     logger.info("Normal map of %s rendered through '%s' to %s", obj_names, cam.name, outpath)
     logger.warning("    ..., and the scene node tree has changed")
+
+
+def render_albedo(outpath, cam=None, obj_names=None):
+    """
+    Render albedo/reflactance image of the specified object(s) from the specified camera
+
+    Args:
+        outpath: Where to save the albedo image
+            String
+        cam: Camera through which scene is rendered
+            bpy_types.Object or None
+            Optional; defaults to None (the only camera in scene)
+        obj_names: Name(s) of object(s) of interest
+            String or list thereof
+            Optional; defaults to None (all objects)
+    """
+    logger_name = thisfile + '->render_albedo()'
+
+

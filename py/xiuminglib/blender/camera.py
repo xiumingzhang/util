@@ -752,15 +752,15 @@ def get_2d_bounding_box(obj, cam):
     cam_mat, _, _ = get_camera_matrix(cam)
 
     # Project all vertices to 2D
-    pts_2d = np.array([], dtype=float).reshape((0, 2))
-    for v in obj.data.vertices:
-        uv = np.array(cam_mat * obj.matrix_world * v.co) # project to 2D
-        uv = uv[:-1] / uv[-1]
-        pts_2d = np.vstack((pts_2d, uv))
+    pts = np.vstack([v.co.to_4d() for v in obj.data.vertices]).T # 4-by-N
+    world_mat = np.array(obj.matrix_world) # 4-by-4
+    cam_mat = np.array(cam_mat) # 3-by-4
+    uvw = cam_mat.dot(world_mat.dot(pts)) # 3-by-N
+    pts_2d = np.divide(uvw[:2, :], np.tile(uvw[2, :], (2, 1))) # 2-by-N
 
     # Compute bounding box
-    u_min, v_min = np.min(pts_2d, axis=0)
-    u_max, v_max = np.max(pts_2d, axis=0)
+    u_min, v_min = np.min(pts_2d, axis=1)
+    u_max, v_max = np.max(pts_2d, axis=1)
     corners = np.vstack((
         np.array([u_min, v_min]),
         np.array([u_max, v_min]),

@@ -665,3 +665,39 @@ def select_mesh_elements_by_vertices(obj, vert_ind, select_type):
     scene.update()
 
     logger.info("Selected %s elements of '%s'", select_type, obj.name)
+
+
+def add_sphere(location=(0, 0, 0), scale=1, n_subdiv=4):
+    """
+    Add a sphere
+
+    Args:
+        location: Location of the sphere center
+            Array_like of three floats
+            Optional; defaults to the origin
+        scale: Scale of the sphere
+            Float
+            Optional; defaults to 1
+        n_subdiv: Control of how round the sphere is
+            Positive integer
+            Optional; defaults to 4
+
+    Returns:
+        sphere: Sphere created
+            bpy_types.Object
+    """
+    bpy.ops.mesh.primitive_ico_sphere_add()
+    sphere = bpy.context.active_object
+
+    sphere.location = location
+    sphere.scale = (scale, scale, scale)
+
+    # Subdivide for smoother sphere
+    bpy.ops.object.modifier_add(type='SUBSURF')
+    sphere.modifiers['Subsurf'].subdivision_type = 'CATMULL_CLARK'
+    sphere.modifiers['Subsurf'].levels = n_subdiv
+    sphere.modifiers['Subsurf'].render_levels = n_subdiv
+    bpy.context.scene.objects.active = sphere
+    bpy.ops.object.modifier_apply(modifier='Subsurf', apply_as='DATA')
+
+    return sphere
