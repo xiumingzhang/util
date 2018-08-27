@@ -5,43 +5,10 @@ Xiuming Zhang, MIT CSAIL
 April 2018
 """
 
-import sys
 from os.path import abspath
-import re
-import numpy as np
 
 import config
 logger, thisfile = config.create_logger(abspath(__file__))
-
-
-def find_extrema_in(arr, find_max=True, n=1):
-    """
-    Find top (or bottom) value(s) in an m-D numpy array
-
-    Args:
-        arr: Array
-            m-D numpy array
-        find_max: Whether to find the maxima or minima
-            Boolean
-            Optional; defaults to True
-        n: Number of values to return
-            Positive integer
-            Optional; defaults to 1
-
-    Returns:
-        ind: Indice(s) that give the extrema
-            m-tuple of numpy arrays of n integers
-        val: Extremum values, i.e., `arr[ind]`
-            Numpy array of length n
-    """
-    if find_max:
-        arr_to_sort = -arr
-    else:
-        arr_to_sort = arr
-    ind = np.argsort(arr_to_sort.flatten())[:n] # linear
-    ind = np.unravel_index(ind, arr.shape)
-    val = arr[ind]
-    return ind, val
 
 
 def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=None):
@@ -61,6 +28,8 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
             Positive integer
             Optional; defaults to None (no limit)
     """
+    import sys
+    import re
     import jsonpickle
     import yaml
 

@@ -238,7 +238,7 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     if bgr.ndim == 1:
         bgr = np.tile(bgr, (n_pts, 1))
 
-    # FIXME -- necessary, probably due to OpenCV bugs?
+    # FIXME: necessary, probably due to OpenCV bugs?
     im = im.copy()
 
     # Put on scatter points
@@ -254,6 +254,38 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
 
     # Write to disk
     cv2.imwrite(outpath, im)
+
+
+def matrix_as_image(arr, outpath='./matrix_as_image.png'):
+    """
+    Visualize an array into a uint8 image
+
+    Args:
+        arr: Array to be transformed into an image
+            2D or 3D numpy array with one or three channels in the third dimension (RGB)
+        outpath: Where to visualize the result
+            String
+            Optional; defaults to './matrix_as_im.png'
+    """
+    import cv2
+
+    if arr.ndim == 2:
+        arr = arr.reshape(arr.shape + (1,))
+    elif arr.ndim == 3:
+        assert (arr.shape[-1] == 3), "Only single- or three-channel images are supported"
+    else:
+        raise ValueError("'arr' needs to be either 2D or 3D")
+
+    chs = ()
+    for ci in range(arr.shape[-1]):
+        minv, maxv = arr[:, :, ci].min(), arr[:, :, ci].max()
+        chs += (((arr[:, :, ci] - minv) / (maxv - minv) * 255).astype(int),)
+    im = np.dstack(chs)
+
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir)
+    cv2.imwrite(outpath, im[:, :, ::-1]) # OpenCV uses BGR
 
 
 def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatmap.png', figtitle=None):

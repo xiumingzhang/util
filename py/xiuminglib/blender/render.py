@@ -268,7 +268,7 @@ def render(outpath, text=None, cam_names=None, hide=None):
     return result_path
 
 
-def _standardize_inputs(cam, obj_names):
+def _render_prepare(cam, obj_names):
     if cam is None:
         cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
         assert (len(cams) == 1), ("There should be exactly one camera in the scene, "
@@ -280,7 +280,78 @@ def _standardize_inputs(cam, obj_names):
     elif obj_names is None:
         obj_names = [o.name for o in bpy.data.objects if o.type == 'MESH']
 
-    return cam, obj_names
+    scene = bpy.context.scene
+
+    # Set active camera
+    scene.camera = cam
+
+    # Hide objects to ignore
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            obj.hide_render = obj.name not in obj_names
+
+    scene.use_nodes = True
+    scene.node_tree.nodes.new('CompositorNodeOutputFile')
+
+    return cam.name, obj_names, scene
+
+
+def _render(scene, result_socket, outpath, exr=True, alpha=True):
+    node_tree = scene.node_tree
+    outnode = node_tree.nodes['File Output']
+
+    # Set output file format
+    if exr:
+        file_format = 'OPEN_EXR'
+        color_depth = '32'
+        ext = '.exr'
+    else:
+        file_format = 'PNG'
+        color_depth = '16'
+        ext = '.png'
+    if alpha:
+        color_mode = 'RGBA'
+    else:
+        color_mode = 'RGB'
+
+    outnode.base_path = '/tmp/%s' % time()
+
+    # Connect result socket(s) to the output node
+    if isinstance(result_socket, dict):
+        assert exr, ".exr must be used for multi-layer results"
+        file_format += '_MULTILAYER'
+
+        assert 'composite' in result_socket.keys(), \
+            ("Composite pass is always rendered anyways. "
+             "Plus, we need this dummy connection for the multi-layer OpenEXR "
+             "file to be saved to disk, strangely")
+        node_tree.links.new(result_socket['composite'], outnode.inputs['Image'])
+
+        # Add input slots and connect
+        for k, v in result_socket.items():
+            outnode.layer_slots.new(k)
+            node_tree.links.new(v, outnode.inputs[k])
+
+        render_f = outnode.base_path + '0001.exr'
+    else:
+        node_tree.links.new(result_socket, outnode.inputs['Image'])
+
+        render_f = join(outnode.base_path, 'Image0001' + ext)
+
+    outnode.format.file_format = file_format
+    outnode.format.color_depth = color_depth
+    outnode.format.color_mode = color_mode
+
+    scene.render.filepath = '/tmp/%s' % time() # composite (to discard)
+
+    # Render
+    bpy.ops.render.render(write_still=True)
+
+    # Move from temporary directory to the desired location
+    if not outpath.endswith(ext):
+        outpath += ext
+    move(render_f, outpath)
+    return outpath
 
 
 def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
@@ -303,54 +374,31 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     """
     logger_name = thisfile + '->render_depth()'
 
-    cam, obj_names = _standardize_inputs(cam, obj_names)
-
-    scene = bpy.context.scene
+    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
 
     # Use Blender Render for anti-aliased results -- faster than Cycles,
     # which needs >1 samples to figure out object boundary
     scene.render.engine = 'BLENDER_RENDER'
     scene.render.alpha_mode = 'TRANSPARENT'
 
-    # Set active camera
-    scene.camera = cam
-
-    # Hide objects to ignore
-    for obj in bpy.data.objects:
-        if obj.type == 'MESH':
-            obj.hide_render = obj.name not in obj_names
-
     if ray_depth:
         raise NotImplementedError("Ray depth")
 
     # Set nodes for z pass rendering
-    scene.use_nodes = True
     node_tree = scene.node_tree
     nodes = node_tree.nodes
     nodes.new('CompositorNodeSetAlpha')
-    nodes.new('CompositorNodeOutputFile')
     node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
                         nodes['Set Alpha'].inputs['Alpha'])
     node_tree.links.new(nodes['Render Layers'].outputs['Z'],
                         nodes['Set Alpha'].inputs['Image'])
-    node_tree.links.new(nodes['Set Alpha'].outputs['Image'],
-                        nodes['File Output'].inputs['Image'])
-    nodes['File Output'].format.file_format = 'OPEN_EXR'
-    nodes['File Output'].format.color_depth = '32'
-    nodes['File Output'].format.color_mode = 'RGBA'
-    nodes['File Output'].base_path = '/tmp/%s' % time()
-    scene.render.filepath = '/tmp/%s' % time()
+    result_socket = nodes['Set Alpha'].outputs['Image']
 
     # Render
-    bpy.ops.render.render(write_still=True)
-
-    # Move from temporary directory
-    if not outpath.endswith('.exr'):
-        outpath += '.exr'
-    move(join(nodes['File Output'].base_path, 'Image0001.exr'), outpath)
+    outpath = _render(scene, result_socket, outpath)
 
     logger.name = logger_name
-    logger.info("Depth map of %s rendered through '%s' to %s", obj_names, cam.name, outpath)
+    logger.info("Depth map of %s rendered through '%s' to %s", obj_names, cam_name, outpath)
     logger.warning("    ..., and the scene node tree has changed")
 
 
@@ -374,9 +422,7 @@ def render_mask(outpath, cam=None, obj_names=None, soft=False):
     """
     logger_name = thisfile + '->render_mask()'
 
-    cam, obj_names = _standardize_inputs(cam, obj_names)
-
-    scene = bpy.context.scene
+    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
 
     if soft:
         scene.render.engine = 'BLENDER_RENDER'
@@ -387,37 +433,16 @@ def render_mask(outpath, cam=None, obj_names=None, soft=False):
         # Anti-aliased edges are built up by averaging multiple samples
         scene.cycles.samples = 1
 
-    # Set active camera
-    scene.camera = cam
-
-    # Hide objects to ignore
-    for obj in bpy.data.objects:
-        if obj.type == 'MESH':
-            obj.hide_render = obj.name not in obj_names
-
     # Set nodes for (binary) alpha pass rendering
-    scene.use_nodes = True
     node_tree = scene.node_tree
     nodes = node_tree.nodes
-    nodes.new('CompositorNodeOutputFile')
-    node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
-                        nodes['File Output'].inputs['Image'])
-    nodes['File Output'].format.file_format = 'PNG'
-    nodes['File Output'].format.color_depth = '16'
-    nodes['File Output'].format.color_mode = 'RGB'
-    nodes['File Output'].base_path = '/tmp/%s' % time()
-    scene.render.filepath = '/tmp/%s' % time()
+    result_socket = nodes['Render Layers'].outputs['Alpha']
 
     # Render
-    bpy.ops.render.render(write_still=True)
-
-    # Move from temporary directory
-    if not outpath.endswith('.png'):
-        outpath += '.png'
-    move(join(nodes['File Output'].base_path, 'Image0001.png'), outpath)
+    outpath = _render(scene, result_socket, outpath, exr=False, alpha=False)
 
     logger.name = logger_name
-    logger.info("Binary mask of %s rendered through '%s'", obj_names, cam.name)
+    logger.info("Mask image of %s rendered through '%s'", obj_names, cam_name)
     logger.warning("    ...; node trees and renderability of these objects have changed")
 
 
@@ -445,17 +470,15 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
 
     logger_name = thisfile + '->render_normal()'
 
-    cam, obj_names = _standardize_inputs(cam, obj_names)
+    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
 
-    scene = bpy.context.scene
-
-    # Set active camera
-    scene.camera = cam
-
-    # Hide objects to ignore
-    for obj in bpy.data.objects:
-        if obj.type == 'MESH':
-            obj.hide_render = obj.name not in obj_names
+    # # Make normals consistent
+    # for obj_name in obj_names:
+    #     scene.objects.active = bpy.data.objects[obj_name]
+    #     bpy.ops.object.mode_set(mode='EDIT')
+    #     bpy.ops.mesh.select_all()
+    #     bpy.ops.mesh.normals_make_consistent()
+    #     bpy.ops.object.mode_set(mode='OBJECT')
 
     # Add reference normal ball
     if 'ref-ball' in obj_names:
@@ -469,23 +492,15 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
         sphere.scale = (1 / s, 1 / s, 1 / s)
 
     # Set up scene node tree
-    scene.use_nodes = True
     node_tree = scene.node_tree
     nodes = node_tree.nodes
     scene.render.layers['RenderLayer'].use_pass_normal = True
     nodes.new('CompositorNodeSetAlpha')
-    nodes.new('CompositorNodeOutputFile')
     node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
                         nodes['Set Alpha'].inputs['Alpha'])
     node_tree.links.new(nodes['Render Layers'].outputs['Normal'],
                         nodes['Set Alpha'].inputs['Image'])
-    node_tree.links.new(nodes['Set Alpha'].outputs['Image'],
-                        nodes['File Output'].inputs['Image'])
-    nodes['File Output'].format.file_format = 'OPEN_EXR'
-    nodes['File Output'].format.color_depth = '32'
-    nodes['File Output'].format.color_mode = 'RGBA' # A for anti-aliasing
-    nodes['File Output'].base_path = '/tmp/%s' % time()
-    scene.render.filepath = '/tmp/%s' % time()
+    result_socket = nodes['Set Alpha'].outputs['Image']
 
     # Select rendering engine based on whether camera or object space is desired
     if camera_space:
@@ -497,24 +512,20 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
         scene.cycles.samples = 16 # for anti-aliased edges
 
     # Render
-    bpy.ops.render.render(write_still=True)
-
-    # Move from temporary directory
-    if not outpath.endswith('.exr'):
-        outpath += '.exr'
-    move(join(nodes['File Output'].base_path, 'Image0001.exr'), outpath)
+    outpath = _render(scene, result_socket, outpath)
 
     logger.name = logger_name
-    logger.info("Normal map of %s rendered through '%s' to %s", obj_names, cam.name, outpath)
+    logger.info("Normal map of %s rendered through '%s' to %s", obj_names, cam_name, outpath)
     logger.warning("    ..., and the scene node tree has changed")
 
 
-def render_albedo(outpath, cam=None, obj_names=None):
+def render_lighting_passes(outpath, cam=None, obj_names=None):
     """
-    Render albedo/reflactance image of the specified object(s) from the specified camera
+    Render select Cycles' lighting passes of the specified object(s)
+        from the specified camera, into a single multi-layer .exr file
 
     Args:
-        outpath: Where to save the albedo image
+        outpath: Where to save the lighting passes
             String
         cam: Camera through which scene is rendered
             bpy_types.Object or None
@@ -523,6 +534,33 @@ def render_albedo(outpath, cam=None, obj_names=None):
             String or list thereof
             Optional; defaults to None (all objects)
     """
-    logger_name = thisfile + '->render_albedo()'
+    logger_name = thisfile + '->render_lighting_passes()'
 
+    select_passes = [
+        'diffuse_direct', 'diffuse_indirect', 'diffuse_color',
+        'glossy_direct', 'glossy_indirect', 'glossy_color',
+    ] # for the purpose of intrinsic images
 
+    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
+
+    scene.render.engine = 'CYCLES'
+    scene.cycles.film_transparent = True
+    scene.cycles.samples = 4
+
+    # Enable all passes of interest
+    render_layer = scene.render.layers['RenderLayer']
+    outputs = scene.node_tree.nodes['Render Layers'].outputs
+    result_sockets = {
+        'composite': outputs['Image'],
+        'alpha': outputs['Alpha'],
+    }
+    for p in select_passes:
+        setattr(render_layer, 'use_pass_' + p, True)
+        result_sockets[p] = outputs[' '.join(x.capitalize() for x in p.split('_'))]
+
+    # Render
+    outpath = _render(scene, result_sockets, outpath, alpha=False) # as alpha is a pass itself
+
+    logger.name = logger_name
+    logger.info("Select lighting passes of %s rendered through '%s' to %s", obj_names, cam_name, outpath)
+    logger.warning("    ..., and the scene node tree has changed")

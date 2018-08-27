@@ -11,6 +11,36 @@ from scipy.sparse.linalg import eigsh
 from scipy.special import sph_harm
 
 
+def find_extrema(arr, find_max=True, n=1):
+    """
+    Find top (or bottom) value(s) in an m-D numpy array
+
+    Args:
+        arr: Array, which will be flattened if high-D
+            m-D numpy array
+        find_max: Whether to find the maxima or minima
+            Boolean
+            Optional; defaults to True
+        n: Number of values to return
+            Positive integer
+            Optional; defaults to 1
+
+    Returns:
+        ind: Indice(s) that give the extrema
+            m-tuple of numpy arrays of n integers
+        val: Extremum values, i.e., `arr[ind]`
+            Numpy array of length n
+    """
+    if find_max:
+        arr_to_sort = -arr
+    else:
+        arr_to_sort = arr
+    ind = np.argsort(arr_to_sort.flatten())[:n] # linear
+    ind = np.unravel_index(ind, arr.shape)
+    val = arr[ind]
+    return ind, val
+
+
 def smooth_1d(arr, win_size, kernel_type='half'):
     """
     Smooth 1D signal
@@ -110,7 +140,7 @@ def pca(data_mat, n_pcs=None, eig_method='scipy.sparse.linalg.eigsh'):
         # eig_vals in ascending order
         # eig_vecs columns are normalized eigenvectors
 
-        # FIXME -- sometimes the eigenvalues are not sorted? Subnormals appear. All zero eigenvectors
+        # FIXME: sometimes the eigenvalues are not sorted? Subnormals appear. All zero eigenvectors
         sort_ind = eig_vals.argsort() # ascending
         eig_vals = eig_vals[sort_ind]
         eig_vecs = eig_vecs[:, sort_ind]
