@@ -291,14 +291,20 @@ def _render_prepare(cam, obj_names):
             obj.hide_render = obj.name not in obj_names
 
     scene.use_nodes = True
-    scene.node_tree.nodes.new('CompositorNodeOutputFile')
 
-    return cam.name, obj_names, scene
+    # Clear the current scene node tree to avoid unexpected renderings
+    nodes = scene.node_tree.nodes
+    for n in nodes:
+        if n.name != "Render Layers":
+            nodes.remove(n)
+
+    outnode = nodes.new('CompositorNodeOutputFile')
+
+    return cam.name, obj_names, scene, outnode
 
 
-def _render(scene, result_socket, outpath, exr=True, alpha=True):
+def _render(scene, outnode, result_socket, outpath, exr=True, alpha=True):
     node_tree = scene.node_tree
-    outnode = node_tree.nodes['File Output']
 
     # Set output file format
     if exr:
@@ -324,7 +330,7 @@ def _render(scene, result_socket, outpath, exr=True, alpha=True):
         assert 'composite' in result_socket.keys(), \
             ("Composite pass is always rendered anyways. "
              "Plus, we need this dummy connection for the multi-layer OpenEXR "
-             "file to be saved to disk, strangely")
+             "file to be saved to disk (strangely)")
         node_tree.links.new(result_socket['composite'], outnode.inputs['Image'])
 
         # Add input slots and connect
@@ -354,13 +360,13 @@ def _render(scene, result_socket, outpath, exr=True, alpha=True):
     return outpath
 
 
-def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
+def render_depth(outprefix, cam=None, obj_names=None, ray_depth=False):
     """
-    Render raw (.exr) depth map of the specified object(s) from the specified camera
-        See ../image_processing.py->exr2png() for how to convert it to a depth *image*
+    Render raw (.exr) depth map, in the form of an aliased z map and an anti-aliased alpha map,
+        of the specified object(s) from the specified camera
 
     Args:
-        outpath: Where to save the .exr depth map
+        outprefix: Where to save the .exr maps, e.g., '~/depth'
             String
         cam: Camera through which scene is rendered
             bpy_types.Object or None
@@ -374,31 +380,34 @@ def render_depth(outpath, cam=None, obj_names=None, ray_depth=False):
     """
     logger_name = thisfile + '->render_depth()'
 
-    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
+    cam_name, obj_names, scene, outnode = _render_prepare(cam, obj_names)
+
+    if ray_depth:
+        raise NotImplementedError("Ray depth")
 
     # Use Blender Render for anti-aliased results -- faster than Cycles,
     # which needs >1 samples to figure out object boundary
     scene.render.engine = 'BLENDER_RENDER'
     scene.render.alpha_mode = 'TRANSPARENT'
 
-    if ray_depth:
-        raise NotImplementedError("Ray depth")
-
-    # Set nodes for z pass rendering
     node_tree = scene.node_tree
     nodes = node_tree.nodes
-    nodes.new('CompositorNodeSetAlpha')
-    node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
-                        nodes['Set Alpha'].inputs['Alpha'])
-    node_tree.links.new(nodes['Render Layers'].outputs['Z'],
-                        nodes['Set Alpha'].inputs['Image'])
-    result_socket = nodes['Set Alpha'].outputs['Image']
 
-    # Render
-    outpath = _render(scene, result_socket, outpath)
+    # Render z pass, without anti-aliasing to avoid values interpolated between
+    # real depth values (e.g., 1.5) and large background depth values (e.g., 1e10)
+    scene.render.use_antialiasing = False
+    result_socket = nodes['Render Layers'].outputs['Z']
+    outpath_z = _render(scene, outnode, result_socket, outprefix + '_z')
+
+    # Render alpha pass, with anti-aliasing to get a soft mask for blending
+    scene.render.use_antialiasing = True
+    result_socket = nodes['Render Layers'].outputs['Alpha']
+    outpath_a = _render(scene, outnode, result_socket, outprefix + '_a')
 
     logger.name = logger_name
-    logger.info("Depth map of %s rendered through '%s' to %s", obj_names, cam_name, outpath)
+    logger.info("Depth map of %s rendered through '%s' to", obj_names, cam_name)
+    logger.info("    1. z w/o anti-aliasing: %s", outpath_z)
+    logger.info("    2. alpha w/ anti-aliasing: %s", outpath_a)
     logger.warning("    ..., and the scene node tree has changed")
 
 
@@ -422,7 +431,7 @@ def render_mask(outpath, cam=None, obj_names=None, soft=False):
     """
     logger_name = thisfile + '->render_mask()'
 
-    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
+    cam_name, obj_names, scene, outnode = _render_prepare(cam, obj_names)
 
     if soft:
         scene.render.engine = 'BLENDER_RENDER'
@@ -439,7 +448,7 @@ def render_mask(outpath, cam=None, obj_names=None, soft=False):
     result_socket = nodes['Render Layers'].outputs['Alpha']
 
     # Render
-    outpath = _render(scene, result_socket, outpath, exr=False, alpha=False)
+    outpath = _render(scene, outnode, result_socket, outpath, exr=False, alpha=False)
 
     logger.name = logger_name
     logger.info("Mask image of %s rendered through '%s'", obj_names, cam_name)
@@ -450,7 +459,6 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
     """
     Render raw (.exr) normal map of the specified object(s) from the specified camera
         RGB at each pixel is the (almost unit) normal vector at that location
-        See ../image_processing.py->exr2png() for how to convert it to a normal *image*
 
     Args:
         outpath: Where to save the .exr (i.e., raw) normal map
@@ -470,7 +478,7 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
 
     logger_name = thisfile + '->render_normal()'
 
-    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
+    cam_name, obj_names, scene, outnode = _render_prepare(cam, obj_names)
 
     # # Make normals consistent
     # for obj_name in obj_names:
@@ -495,12 +503,12 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
     node_tree = scene.node_tree
     nodes = node_tree.nodes
     scene.render.layers['RenderLayer'].use_pass_normal = True
-    nodes.new('CompositorNodeSetAlpha')
+    set_alpha_node = nodes.new('CompositorNodeSetAlpha')
     node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
-                        nodes['Set Alpha'].inputs['Alpha'])
+                        set_alpha_node.inputs['Alpha'])
     node_tree.links.new(nodes['Render Layers'].outputs['Normal'],
-                        nodes['Set Alpha'].inputs['Image'])
-    result_socket = nodes['Set Alpha'].outputs['Image']
+                        set_alpha_node.inputs['Image'])
+    result_socket = set_alpha_node.outputs['Image']
 
     # Select rendering engine based on whether camera or object space is desired
     if camera_space:
@@ -512,7 +520,7 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
         scene.cycles.samples = 16 # for anti-aliased edges
 
     # Render
-    outpath = _render(scene, result_socket, outpath)
+    outpath = _render(scene, outnode, result_socket, outpath)
 
     logger.name = logger_name
     logger.info("Normal map of %s rendered through '%s' to %s", obj_names, cam_name, outpath)
@@ -541,25 +549,32 @@ def render_lighting_passes(outpath, cam=None, obj_names=None):
         'glossy_direct', 'glossy_indirect', 'glossy_color',
     ] # for the purpose of intrinsic images
 
-    cam_name, obj_names, scene = _render_prepare(cam, obj_names)
+    cam_name, obj_names, scene, outnode = _render_prepare(cam, obj_names)
 
-    scene.render.engine = 'CYCLES'
+    assert scene.render.engine == 'CYCLES', \
+        "You need Cycles to render lighting passes"
     scene.cycles.film_transparent = True
-    scene.cycles.samples = 4
 
     # Enable all passes of interest
     render_layer = scene.render.layers['RenderLayer']
-    outputs = scene.node_tree.nodes['Render Layers'].outputs
+    node_tree = scene.node_tree
+    nodes = node_tree.nodes
     result_sockets = {
-        'composite': outputs['Image'],
-        'alpha': outputs['Alpha'],
+        'composite': nodes['Render Layers'].outputs['Image'],
     }
     for p in select_passes:
         setattr(render_layer, 'use_pass_' + p, True)
-        result_sockets[p] = outputs[' '.join(x.capitalize() for x in p.split('_'))]
+        p_key = ' '.join(x.capitalize() for x in p.split('_'))
+        # Set alpha
+        set_alpha_node = nodes.new('CompositorNodeSetAlpha')
+        node_tree.links.new(nodes['Render Layers'].outputs['Alpha'],
+                            set_alpha_node.inputs['Alpha'])
+        node_tree.links.new(nodes['Render Layers'].outputs[p_key],
+                            set_alpha_node.inputs['Image'])
+        result_sockets[p] = set_alpha_node.outputs['Image']
 
     # Render
-    outpath = _render(scene, result_sockets, outpath, alpha=False) # as alpha is a pass itself
+    outpath = _render(scene, outnode, result_sockets, outpath)
 
     logger.name = logger_name
     logger.info("Select lighting passes of %s rendered through '%s' to %s", obj_names, cam_name, outpath)

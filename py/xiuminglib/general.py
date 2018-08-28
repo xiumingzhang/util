@@ -5,7 +5,9 @@ Xiuming Zhang, MIT CSAIL
 April 2018
 """
 
+import sys
 from os.path import abspath
+import re
 
 import config
 logger, thisfile = config.create_logger(abspath(__file__))
@@ -28,8 +30,6 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
             Positive integer
             Optional; defaults to None (no limit)
     """
-    import sys
-    import re
     import jsonpickle
     import yaml
 

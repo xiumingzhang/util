@@ -6,16 +6,19 @@ June 2017
 """
 
 from os import makedirs
-from os.path import dirname, exists
-from warnings import warn
+from os.path import dirname, exists, abspath
 from pickle import dump
 import numpy as np
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D # noqa; pylint: disable=unused-import
+
+import config
+logger, thisfile = config.create_logger(abspath(__file__))
 
 
 def pyplot_wrapper(*args,
@@ -216,6 +219,8 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     """
     import cv2
 
+    logger_name = thisfile + '->scatter_on_image()'
+
     thickness = -1 # for filled circles
 
     # Standardize inputs
@@ -227,7 +232,8 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     n_pts = pts.shape[0]
 
     if im.dtype != 'uint8' and im.dtype != 'uint16':
-        warn("Input image type may cause obscure cv2 errors")
+        logger.name = logger_name
+        logger.warning("Input image type may cause obscure cv2 errors")
 
     if isinstance(size, int):
         size = np.array([size] * n_pts)
@@ -258,34 +264,63 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
 
 def matrix_as_image(arr, outpath='./matrix_as_image.png'):
     """
-    Visualize an array into a uint8 image
+    Visualize an array into a uint8 image by putting minimum at 0
+        and maximum at 255, separately for each color channel
 
     Args:
         arr: Array to be transformed into an image
             2D or 3D numpy array with one or three channels in the third dimension (RGB)
         outpath: Where to visualize the result
             String
-            Optional; defaults to './matrix_as_im.png'
+            Optional; defaults to './matrix_as_image.png'
     """
+    logger_name = thisfile + '->matrix_as_image()'
+
     import cv2
 
     if arr.ndim == 2:
         arr = arr.reshape(arr.shape + (1,))
     elif arr.ndim == 3:
-        assert (arr.shape[-1] == 3), "Only single- or three-channel images are supported"
+        assert (arr.shape[-1] in (1, 3, 4)), \
+            "Only single-, three-, or four-channel matrices are supported"
     else:
         raise ValueError("'arr' needs to be either 2D or 3D")
 
+    n_chs = arr.shape[-1]
+    if n_chs == 4:
+        is_fg = arr[:, :, 3] == 1
+    else:
+        is_fg = None
+
     chs = ()
-    for ci in range(arr.shape[-1]):
-        minv, maxv = arr[:, :, ci].min(), arr[:, :, ci].max()
-        chs += (((arr[:, :, ci] - minv) / (maxv - minv) * 255).astype(int),)
+    for ci in range(n_chs):
+        if is_fg is None or ci == 3:
+            # No A or this is A
+            minv, maxv = arr[:, :, ci].min(), arr[:, :, ci].max()
+        else:
+            # RGB in presensence of A need to be masked by A
+            minv, maxv = arr[:, :, ci][is_fg].min(), arr[:, :, ci][is_fg].max()
+
+        if maxv == minv:
+            chs += (arr[:, :, ci].astype(int),)
+            logger.name = logger_name
+            logger.warning(
+                ("Channel %d of matrix contains only a single value: %f, so only operation "
+                 "performed: cast to integer (i.e., no scaling/offsetting)"), ci, maxv)
+        else:
+            chs += (((arr[:, :, ci] - minv) / (maxv - minv) * 255).astype(int),)
     im = np.dstack(chs)
 
     outdir = dirname(outpath)
     if not exists(outdir):
         makedirs(outdir)
-    cv2.imwrite(outpath, im[:, :, ::-1]) # OpenCV uses BGR
+
+    if im.shape[-1] == 4:
+        # RGBA
+        cv2.imwrite(outpath, im[:, :, [2, 1, 0, 3]]) # OpenCV uses BGR
+    else:
+        # Grayscale or RGB
+        cv2.imwrite(outpath, im[:, :, ::-1])
 
 
 def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatmap.png', figtitle=None):
@@ -525,6 +560,8 @@ def axes3d_wrapper(
             String ending with '.png' or '.pkl' (for offline interactive viewing)
             Optional; defaults to './plot.png'
     """
+    logger_name = thisfile + '->axes3d_wrapper()'
+
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d')
 
@@ -583,7 +620,10 @@ def axes3d_wrapper(
     if equal_axes:
         # plt.axis('equal') # not working, hence the hack of creating a cubic bounding box
         x_data, y_data, z_data = np.array([]), np.array([]), np.array([])
-        warn("Assuming args are x1, y1, z1, x2, y2, z2, ...")
+
+        logger.name = logger_name
+        logger.warning("Assuming args are x1, y1, z1, x2, y2, z2, ...")
+
         for i in range(0, len(args), 3):
             x_data = np.hstack((x_data, args[i]))
             y_data = np.hstack((y_data, args[i + 1]))
@@ -640,10 +680,10 @@ def ptcld_as_isosurf(pts, out_obj, res=128, center=False):
     from skimage.measure import marching_cubes_lewiner
     from trimesh import Trimesh
     from trimesh.io.export import export_mesh
-    from xiuminglib import geometry as xgeo
+    from xiuminglib import geometry as xg
 
     # Point cloud to TDF
-    tdf = xgeo.ptcld2tdf(pts, res=res, center=center)
+    tdf = xg.ptcld2tdf(pts, res=res, center=center)
 
     # Isosurface of TDF
     vs, fs, ns, _ = marching_cubes_lewiner(
