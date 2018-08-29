@@ -264,8 +264,8 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
 
 def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
     """
-    Visualize an array into a uint8 image by putting minimum at 0
-        and maximum at 255, separately for each color channel
+    Visualize an array into an image by putting minimum (across all channels) at 0
+        and maximum at dtype_max
 
     Args:
         arr: Array to be transformed into an image
@@ -282,38 +282,39 @@ def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
 
     logger_name = thisfile + '->matrix_as_image()'
 
+    dtype = 'uint8'
+    dtype_max = np.iinfo(dtype).max
+
     if arr.ndim == 2:
         arr = arr.reshape(arr.shape + (1,))
     elif arr.ndim == 3:
         assert (arr.shape[-1] in (1, 3, 4)), \
-            "Only single-, three-, or four-channel matrices are supported"
+            ("Only single- (grayscale), three- (RGB), "
+             "or four-channel (RGBA) matrices are supported")
     else:
         raise ValueError("'arr' needs to be either 2D or 3D")
 
     n_chs = arr.shape[-1]
     if n_chs == 4:
-        is_fg = arr[:, :, 3] == 1
+        arr, a = arr[:, :, :3], arr[:, :, 3]
+        assert a.min() >= 0 and a.max() == 1, "Alpha must be [0, 1]"
+        im_a = (a * dtype_max).astype(dtype)
     else:
-        is_fg = None
+        a = None
 
-    chs = ()
-    for ci in range(n_chs):
-        if is_fg is None or ci == 3:
-            # No A or this is A
-            minv, maxv = arr[:, :, ci].min(), arr[:, :, ci].max()
-        else:
-            # RGB in presensence of A need to be masked by A
-            minv, maxv = arr[:, :, ci][is_fg].min(), arr[:, :, ci][is_fg].max()
+    minv, maxv = arr.min(), arr.max()
+    if minv == maxv:
+        im = (arr * dtype_max).astype(dtype)
+        logger.name = logger_name
+        logger.warning(
+            ("RGB channels contain only a single value: %f, so only operations "
+             "performed: multiplied by dtype_max and cast to integer"), maxv)
+    else:
+        im = (dtype_max * (arr - minv) / (maxv - minv)).astype(dtype)
+        # astype() safe only because we know it's [0, dtype_max]
 
-        if maxv == minv:
-            chs += (arr[:, :, ci].astype(int),)
-            logger.name = logger_name
-            logger.warning(
-                ("Channel %d of matrix contains only a single value: %f, so only operation "
-                 "performed: cast to integer (i.e., no scaling/offsetting)"), ci, maxv)
-        else:
-            chs += ((arr[:, :, ci] - minv) / (maxv - minv) * 255,)
-    im = np.dstack(chs).astype('uint8') # safe only because we know it's [0, 255]
+    if a is not None:
+        im = np.dstack((im, im_a))
 
     if gamma is not None:
         im = xi.gamma_correct(im, gamma)

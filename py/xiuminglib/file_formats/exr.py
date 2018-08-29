@@ -41,7 +41,7 @@ def load_exr(exr_path):
     return data
 
 
-def generate_depth_image(exr_prefix, outpath):
+def extract_depth(exr_prefix, outpath, vis=False):
     """
     Combine an aliased, raw depth map and an anti-aliased alpha map into a .png image,
         with background being black, close to camera being bright, and far away being dark
@@ -49,10 +49,16 @@ def generate_depth_image(exr_prefix, outpath):
     Args:
         exr_prefix: Common prefix of .exr paths
             String
-        outpath: Path to the result .png file
+        outpath: Path to the result .npy file
             String
+        vis: Whether to visualize the raw values as an image
+            Boolean
+            Optional; defaults to False
     """
-    logger_name = thisfile + '->generate_depth_image()'
+    logger_name = thisfile + '->extract_depth()'
+
+    dtype = 'uint8'
+    dtype_max = np.iinfo(dtype).max
 
     # Load alpha
     arr = cv2.imread(exr_prefix + '_a.exr', cv2.IMREAD_UNCHANGED)
@@ -66,23 +72,28 @@ def generate_depth_image(exr_prefix, outpath):
         "A valid depth map must have all three channels the same"
     depth = arr[..., 0] # these raw values are aliased, so only one crazy big value
 
-    is_fg = depth < depth.max()
-    max_val = depth[is_fg].max()
-    depth[depth > max_val] = max_val # cap background depth at the object maximum depth
-    min_val = depth.min()
+    if not outpath.endswith('.npy'):
+        outpath += '.npy'
+    np.save(outpath, np.dstack((arr, alpha)))
 
-    im = 255 * (max_val - depth) / (max_val - min_val) # [0, 255]
+    if vis:
+        is_fg = depth < depth.max()
+        max_val = depth[is_fg].max()
+        depth[depth > max_val] = max_val # cap background depth at the object maximum depth
+        min_val = depth.min()
 
-    # Anti-aliasing
-    bg = np.zeros(im.shape)
-    im = np.multiply(alpha, im) + np.multiply(1 - alpha, bg)
-    cv2.imwrite(outpath, im.astype(int))
+        im = dtype_max * (max_val - depth) / (max_val - min_val) # [0, dtype_max]
+
+        # Anti-aliasing
+        bg = np.zeros(im.shape)
+        im = np.multiply(alpha, im) + np.multiply(1 - alpha, bg)
+        cv2.imwrite(outpath[:-4] + '.png', im.astype(dtype))
 
     logger.name = logger_name
-    logger.info("Depth image generated at %s", outpath)
+    logger.info("Depth image extractd at %s", outpath)
 
 
-def generate_normal_image(exr_path, outpath):
+def extract_normal(exr_path, outpath, vis=False):
     """
     Convert an RGBA .exr normal map to a .png normal image, with background being black
         and complying with industry standards (e.g., Adobe AE)
@@ -90,44 +101,58 @@ def generate_normal_image(exr_path, outpath):
     Args:
         exr_path: Path to the .exr file to convert
             String
-        outpath: Path to the result .png file
+        outpath: Path to the result .npy file
             String
+        vis: Whether to visualize the raw values as an image
+            Boolean
+            Optional; defaults to False
     """
-    logger_name = thisfile + '->generate_normal_image()'
+    logger_name = thisfile + '->extract_normal()'
+
+    dtype = 'uint8'
+    dtype_max = np.iinfo(dtype).max
 
     # Load RGBA .exr
     # cv2.imread() can't load more than three channels from .exr even with IMREAD_UNCHANGED
     # Has to go through IO. Maybe there's a better way?
     data = load_exr(exr_path)
-    arr = np.dstack((data['B'], data['G'], data['R']))
+    arr = np.dstack((data['R'], data['G'], data['B']))
     alpha = data['A']
 
-    # [-1, 1]
-    im = (1 - (arr / 2 + 0.5)) * 255
-    bg = np.zeros(im.shape)
-    alpha = np.dstack((alpha, alpha, alpha))
-    im = np.multiply(alpha, im) + np.multiply(1 - alpha, bg)
-    cv2.imwrite(outpath, im.astype(int))
+    if not outpath.endswith('.npy'):
+        outpath += '.npy'
+    np.save(outpath, np.dstack((arr, alpha)))
+
+    if vis:
+        # [-1, 1]
+        im = (1 - (arr / 2 + 0.5)) * dtype_max
+        # [0, dtype_max]
+        bg = np.zeros(im.shape)
+        alpha = np.dstack((alpha, alpha, alpha))
+        im = np.multiply(alpha, im) + np.multiply(1 - alpha, bg)
+        cv2.imwrite(outpath[:-4] + '.png', im.astype(dtype)[..., ::-1])
 
     logger.name = logger_name
-    logger.info("Normal image generated at %s", outpath)
+    logger.info("Normal image extractd at %s", outpath)
 
 
-def intrinsic_images_from_lighting_passes(exr_path, outdir):
+def extract_intrinsic_images_from_lighting_passes(exr_path, outdir, vis=False):
     """
     Extract intrinsic images from a multi-layer .exr of lighting passes
+        into multiple .npy files
 
     Args:
         exr_path: Path to the multi-layer .exr file
             String
         outdir: Directory to the result .png files to
             String
+        vis: Whether to visualize the raw values as images
+            Boolean
+            Optional; defaults to False
     """
     from xiuminglib import visualization as xv
 
-    logger_name = thisfile + '->intrinsic_images_from_lighting_passes()'
-
-    gamma = 4
+    logger_name = thisfile + '->extract_intrinsic_images_from_lighting_passes()'
 
     if not exists(outdir):
         makedirs(outdir)
@@ -152,22 +177,34 @@ def intrinsic_images_from_lighting_passes(exr_path, outdir):
 
     # Albedo
     albedo = collapse_passes(['diffuse_color', 'glossy_color'])
-    xv.matrix_as_image(albedo, outpath=join(outdir, 'albedo.png'), gamma=gamma)
+    np.save(join(outdir, 'albedo.npy'), albedo)
+    if vis:
+        xv.matrix_as_image(albedo, outpath=join(outdir, 'albedo.png'))
 
     # Shading
     shading = collapse_passes(['diffuse_indirect', 'diffuse_direct'])
-    xv.matrix_as_image(shading, join(outdir, 'shading.png'), gamma=gamma)
+    np.save(join(outdir, 'shading.npy'), shading)
+    if vis:
+        xv.matrix_as_image(shading, join(outdir, 'shading.png'))
 
-    # # Specularity
-    # specularity = collapse_passes(['glossy_indirect', 'glossy_direct'])
-    # xv.matrix_as_image(specularity, join(outdir, 'specularity.png'))
+    # Specularity
+    specularity = collapse_passes(['glossy_indirect', 'glossy_direct'])
+    np.save(join(outdir, 'specularity.npy'), specularity)
+    if vis:
+        xv.matrix_as_image(specularity, join(outdir, 'specularity.png'))
 
-    # Reconstruction vs. composite from Blender, just for sanity check
-    recon = np.multiply(albedo, shading) # + specularity
+    # Reconstruction vs.
+    recon = np.multiply(albedo, shading) + specularity
     recon[:, :, 3] = albedo[:, :, 3] # can't add up alpha channels
-    xv.matrix_as_image(recon, join(outdir, 'recon.png'), gamma=gamma)
-    gt = collapse_passes(['composite'])
-    xv.matrix_as_image(gt, join(outdir, 'gt.png'), gamma=gamma)
+    np.save(join(outdir, 'recon.npy'), recon)
+    if vis:
+        xv.matrix_as_image(recon, join(outdir, 'recon.png'))
+
+    # ... composite from Blender, just for sanity check
+    composite = collapse_passes(['composite'])
+    np.save(join(outdir, 'composite.npy'), composite)
+    if vis:
+        xv.matrix_as_image(composite, join(outdir, 'composite.png'))
 
     logger.name = logger_name
     logger.info("Intrinsic images extracted to %s", outdir)

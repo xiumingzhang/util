@@ -135,7 +135,8 @@ def easyset(w=None, h=None,
             Optional; no change if not given
     """
     scene = bpy.context.scene
-    engine = scene.render.engine
+
+    scene.render.resolution_percentage = 100
 
     if w is not None:
         scene.render.resolution_x = w
@@ -144,11 +145,8 @@ def easyset(w=None, h=None,
         scene.render.resolution_y = h
 
     # Number of samples
-    if n_samples is not None:
-        if engine == 'CYCLES':
-            scene.cycles.samples = n_samples
-        else:
-            raise NotImplementedError(engine)
+    if n_samples is not None and scene.render.engine == 'CYCLES':
+        scene.cycles.samples = n_samples
 
     # Ambient occlusion
     if ao is not None:
@@ -527,7 +525,7 @@ def render_normal(outpath, cam=None, obj_names=None, camera_space=True):
     logger.warning("    ..., and the scene node tree has changed")
 
 
-def render_lighting_passes(outpath, cam=None, obj_names=None):
+def render_lighting_passes(outpath, cam=None, obj_names=None, n_samples=64):
     """
     Render select Cycles' lighting passes of the specified object(s)
         from the specified camera, into a single multi-layer .exr file
@@ -541,18 +539,21 @@ def render_lighting_passes(outpath, cam=None, obj_names=None):
         obj_names: Name(s) of object(s) of interest
             String or list thereof
             Optional; defaults to None (all objects)
+        n_samples: Number of path tracing samples per pixel
+            Natural number
+            Optional; defaults to 64
     """
     logger_name = thisfile + '->render_lighting_passes()'
 
     select_passes = [
         'diffuse_direct', 'diffuse_indirect', 'diffuse_color',
-        # 'glossy_direct', 'glossy_indirect', 'glossy_color',
+        'glossy_direct', 'glossy_indirect', 'glossy_color',
     ] # for the purpose of intrinsic images
 
     cam_name, obj_names, scene, outnode = _render_prepare(cam, obj_names)
 
-    assert scene.render.engine == 'CYCLES', \
-        "You need Cycles to render lighting passes"
+    scene.render.engine = 'CYCLES'
+    scene.cycles.samples = n_samples
     scene.cycles.film_transparent = True
 
     # Enable all passes of interest

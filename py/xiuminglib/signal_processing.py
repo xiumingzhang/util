@@ -11,19 +11,22 @@ from scipy.sparse.linalg import eigsh
 from scipy.special import sph_harm
 
 
-def find_extrema(arr, find_max=True, n=1):
+def get(arr, top=True, n=1, n_std=None):
     """
-    Find top (or bottom) value(s) in an m-D numpy array
+    Get top (or bottom) n value(s) from an m-D array_like
 
     Args:
         arr: Array, which will be flattened if high-D
-            m-D numpy array
-        find_max: Whether to find the maxima or minima
+            m-D array_like
+        top: Whether to find the top or bottom n
             Boolean
             Optional; defaults to True
         n: Number of values to return
             Positive integer
             Optional; defaults to 1
+        n_std: Definition of outliers to exclude, assuming Gaussian
+            Positive float
+            Optional; defaults to None (assuming no outlier)
 
     Returns:
         ind: Indice(s) that give the extrema
@@ -31,13 +34,26 @@ def find_extrema(arr, find_max=True, n=1):
         val: Extremum values, i.e., `arr[ind]`
             Numpy array of length n
     """
-    if find_max:
-        arr_to_sort = -arr
+    arr = np.array(arr, dtype=float)
+
+    if top:
+        arr_to_sort = -arr.flatten()
     else:
-        arr_to_sort = arr
-    ind = np.argsort(arr_to_sort.flatten())[:n] # linear
-    ind = np.unravel_index(ind, arr.shape)
+        arr_to_sort = arr.flatten()
+
+    if n_std is not None:
+        meanv = np.mean(arr_to_sort)
+        stdv = np.std(arr_to_sort)
+        arr_to_sort[np.logical_or(
+            arr_to_sort < meanv - n_std * stdv,
+            arr_to_sort > meanv + n_std * stdv,
+        )] = np.nan # considered greater than numbers
+
+    ind = [x for x in np.argsort(arr_to_sort)
+           if not np.isnan(arr_to_sort[x])][:n] # 1D indices
+    ind = np.unravel_index(ind, arr.shape) # Back to high-D
     val = arr[ind]
+
     return ind, val
 
 
