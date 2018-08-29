@@ -262,7 +262,7 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     cv2.imwrite(outpath, im)
 
 
-def matrix_as_image(arr, outpath='./matrix_as_image.png'):
+def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
     """
     Visualize an array into a uint8 image by putting minimum at 0
         and maximum at 255, separately for each color channel
@@ -273,10 +273,14 @@ def matrix_as_image(arr, outpath='./matrix_as_image.png'):
         outpath: Where to visualize the result
             String
             Optional; defaults to './matrix_as_image.png'
+        gamma: For gamma correction
+            Positive float
+            Optional; defaults to None (no correction)
     """
-    logger_name = thisfile + '->matrix_as_image()'
-
     import cv2
+    from xiuminglib import image_processing as xi
+
+    logger_name = thisfile + '->matrix_as_image()'
 
     if arr.ndim == 2:
         arr = arr.reshape(arr.shape + (1,))
@@ -308,8 +312,11 @@ def matrix_as_image(arr, outpath='./matrix_as_image.png'):
                 ("Channel %d of matrix contains only a single value: %f, so only operation "
                  "performed: cast to integer (i.e., no scaling/offsetting)"), ci, maxv)
         else:
-            chs += (((arr[:, :, ci] - minv) / (maxv - minv) * 255).astype(int),)
-    im = np.dstack(chs)
+            chs += ((arr[:, :, ci] - minv) / (maxv - minv) * 255,)
+    im = np.dstack(chs).astype('uint8') # safe only because we know it's [0, 255]
+
+    if gamma is not None:
+        im = xi.gamma_correct(im, gamma)
 
     outdir = dirname(outpath)
     if not exists(outdir):

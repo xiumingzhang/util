@@ -546,7 +546,7 @@ def render_lighting_passes(outpath, cam=None, obj_names=None):
 
     select_passes = [
         'diffuse_direct', 'diffuse_indirect', 'diffuse_color',
-        'glossy_direct', 'glossy_indirect', 'glossy_color',
+        # 'glossy_direct', 'glossy_indirect', 'glossy_color',
     ] # for the purpose of intrinsic images
 
     cam_name, obj_names, scene, outnode = _render_prepare(cam, obj_names)

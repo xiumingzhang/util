@@ -336,3 +336,40 @@ def compute_gradients(im):
         grad_orient = grad_orient[:, :, 0]
 
     return grad_mag, grad_orient
+
+
+def gamma_correct(im, gamma):
+    """
+    Apply gamma correction to image
+
+    Args:
+        im: Single-channel (e.g., grayscale) or multi-channel (e.g., RGB) images
+            h-by-w or h-by-w-by-c numpy array
+        gamma: Gamma value < 1 shifts image towards the darker end of the spectrum,
+            while value > 1 towards the brighter
+            Positive float
+
+    Returns:
+        im_corrected: Gamma-corrected image
+            Boolean numpy array of the same size as 'im'
+    """
+    assert im.dtype in ('uint8', 'uint16')
+
+    # Don't correct alpha channel, if exists
+    alpha = None
+    if im.ndim == 2 and im.shape[2] == 4:
+        alpha = im[:, :, 3]
+        im = im[:, :, :3]
+
+    # Correct with lookup table
+    type_max = np.iinfo(im.dtype).max
+    table = np.array([
+        ((x / type_max) ** (1 / gamma)) * type_max for x in np.arange(0, type_max + 1)
+    ]).astype(im.dtype)
+    im_corrected = cv2.LUT(im, table)
+
+    # Concat alpha channel back
+    if alpha is not None:
+        im_corrected = np.dstack((im_corrected, alpha))
+
+    return im_corrected

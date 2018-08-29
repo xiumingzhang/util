@@ -120,12 +120,14 @@ def intrinsic_images_from_lighting_passes(exr_path, outdir):
     Args:
         exr_path: Path to the multi-layer .exr file
             String
-        outpath: Path to the result .png file
+        outdir: Directory to the result .png files to
             String
     """
     from xiuminglib import visualization as xv
 
     logger_name = thisfile + '->intrinsic_images_from_lighting_passes()'
+
+    gamma = 4
 
     if not exists(outdir):
         makedirs(outdir)
@@ -150,22 +152,22 @@ def intrinsic_images_from_lighting_passes(exr_path, outdir):
 
     # Albedo
     albedo = collapse_passes(['diffuse_color', 'glossy_color'])
-    xv.matrix_as_image(albedo, join(outdir, 'albedo.png'))
+    xv.matrix_as_image(albedo, outpath=join(outdir, 'albedo.png'), gamma=gamma)
 
     # Shading
     shading = collapse_passes(['diffuse_indirect', 'diffuse_direct'])
-    xv.matrix_as_image(shading, join(outdir, 'shading.png'))
+    xv.matrix_as_image(shading, join(outdir, 'shading.png'), gamma=gamma)
 
-    # Specularity
-    specularity = collapse_passes(['glossy_indirect', 'glossy_direct'])
-    xv.matrix_as_image(specularity, join(outdir, 'specularity.png'))
+    # # Specularity
+    # specularity = collapse_passes(['glossy_indirect', 'glossy_direct'])
+    # xv.matrix_as_image(specularity, join(outdir, 'specularity.png'))
 
     # Reconstruction vs. composite from Blender, just for sanity check
-    recon = np.multiply(albedo, shading) + specularity
+    recon = np.multiply(albedo, shading) # + specularity
     recon[:, :, 3] = albedo[:, :, 3] # can't add up alpha channels
-    xv.matrix_as_image(recon, join(outdir, 'recon.png'))
-    gt = collapse_passes(['Image'])
-    xv.matrix_as_image(gt, join(outdir, 'gt.png'))
+    xv.matrix_as_image(recon, join(outdir, 'recon.png'), gamma=gamma)
+    gt = collapse_passes(['composite'])
+    xv.matrix_as_image(gt, join(outdir, 'gt.png'), gamma=gamma)
 
     logger.name = logger_name
     logger.info("Intrinsic images extracted to %s", outdir)
