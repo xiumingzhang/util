@@ -60,7 +60,7 @@ for impath_text in pairs:
     impath = impath_text[0]
 
     # Crop, if asked to, and resize
-    im = cv2.imread(impath, cv2.IMREAD_UNCHANGED)
+    im = cv2.imread(impath)
     assert im is not None, "%s not found" % impath
     if cropbox != (0, 0, -1, -1):
         y_min, x_min, h, w = cropbox
