@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D # noqa; pylint: disable=unused-import
+import matplotlib.colors as mcolors
 
 import config
 logger, thisfile = config.create_logger(abspath(__file__))
@@ -65,7 +66,8 @@ def pyplot_wrapper(*args,
             List of strings or None (no label for this object)
             Optional; defaults to None (no legend)
         legend_loc: Legend location; effective only when `labels` is not None
-            'best', 'upper right', 'lower left', 'right', 'center left', 'lower center', 'upper center', 'center', etc.
+            'best' | 'upper right' | 'lower left' | 'right' | 'center left' | 'lower center' |
+                'upper center' | 'center' | etc.
             Optional; defaults to 'best'
         figsize: Width and height of the figure in inches
             Tuple of two positive floats
@@ -330,6 +332,36 @@ def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
     else:
         # Grayscale or RGB
         cv2.imwrite(outpath, im[:, :, ::-1])
+
+
+def make_colormap(low, high):
+    """
+    Generates your own colormap for heatmap
+
+    Args:
+        low, high: Colors for the lowest/highest value
+            String, such as 'red', or 3-tuple, such as (1, 0, 0)
+
+    Returns:
+        cmap: Generated colormap
+            matplotlib.colors.LinearSegmentedColormap
+    """
+    c = mcolors.ColorConverter().to_rgb
+    if isinstance(low, str):
+        low = c(low)
+    if isinstance(high, str):
+        high = c(high)
+    seq = [(None,) * 3, 0.0] + [low, high] + [1.0, (None,) * 3]
+    cdict = {'red': [], 'green': [], 'blue': []}
+    for i, x in enumerate(seq):
+        if isinstance(x, float):
+            r1, g1, b1 = seq[i - 1]
+            r2, g2, b2 = seq[i + 1]
+            cdict['red'].append([x, r1, r2])
+            cdict['green'].append([x, g1, g2])
+            cdict['blue'].append([x, b1, b2])
+    cmap = mcolors.LinearSegmentedColormap('CustomMap', cdict)
+    return cmap
 
 
 def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
