@@ -6,7 +6,7 @@ August 2018
 """
 
 from os import makedirs
-from os.path import abspath, dirname, exists, join
+from os.path import abspath, dirname, exists, join, basename
 import numpy as np
 import cv2
 
@@ -14,7 +14,7 @@ import config
 logger, thisfile = config.create_logger(abspath(__file__))
 
 
-def load_exr(exr_path):
+def load(exr_path):
     """
     Load .exr as a dict, by converting it to a .npz and loading that .npz
 
@@ -30,7 +30,8 @@ def load_exr(exr_path):
     from subprocess import call
 
     # Convert to .npz
-    npz_f = '/tmp/%s.npz' % time()
+    npz_f = '/tmp/%s_t%s.npz' % \
+        (basename(exr_path).replace('.exr', ''), time())
     call(['python2',
           '%s/../../commandline/exr2npz.py' % dirname(abspath(__file__)),
           exr_path,
@@ -115,7 +116,7 @@ def extract_normal(exr_path, outpath, vis=False):
     # Load RGBA .exr
     # cv2.imread() can't load more than three channels from .exr even with IMREAD_UNCHANGED
     # Has to go through IO. Maybe there's a better way?
-    data = load_exr(exr_path)
+    data = load(exr_path)
     arr = np.dstack((data['R'], data['G'], data['B']))
     alpha = data['A']
 
@@ -157,7 +158,7 @@ def extract_intrinsic_images_from_lighting_passes(exr_path, outdir, vis=False):
     if not exists(outdir):
         makedirs(outdir)
 
-    data = load_exr(exr_path)
+    data = load(exr_path)
 
     def collapse_passes(components):
         ch_arrays = []

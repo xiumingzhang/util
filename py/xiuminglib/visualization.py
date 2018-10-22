@@ -4,6 +4,7 @@ Utility Functions for Visualizations
 Xiuming Zhang, MIT CSAIL
 June 2017
 """
+# Should be imported before skimage to avoid the matplotlib backend problem
 
 from os import makedirs
 from os.path import dirname, exists, abspath
@@ -331,13 +332,18 @@ def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
         cv2.imwrite(outpath, im[:, :, ::-1])
 
 
-def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatmap.png', figtitle=None):
+def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
+                      outpath='./matrix_as_heatmap.png',
+                      contents_only=False, figtitle=None):
     """
     Visualizes a matrix as heatmap
 
     Args:
         mat: Matrix to visualize as heatmp
             2D numpy array that may contain NaN's, which will be plotted white
+        cmap: Colormap to use
+            String or any colormap type
+            Optional; defaults to 'viridis'
         center_around_zero: Whether to center colorbar around 0 (so that zero is no color, i.e., white)
             Useful when matrix consists of both positive and negative values, and 0 means "nothing"
             Boolean
@@ -345,20 +351,36 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
         outpath: Path to which the visualization is saved
             String
             Optional; defaults to './matrix_as_heatmap.png'
+        contents_only: Whether to plot only the contents (i.e., no borders, axes, etc.)
+            Boolean
+            Optional; defaults to False
         figtitle: Figure title
             String
             Optional; defaults to None (no title)
     """
-    figsize = 14
-
     if mat.ndim != 2:
         raise ValueError("'mat' must have exactly 2 dimensions, but has %d" % mat.ndim)
 
-    plt.figure(figsize=(figsize, figsize))
-    ax = plt.gca()
+    # Figure
+    if contents_only:
+        # Output heatmap will have the exact same shape as input matrix
+        dpi = 96 # assumed
+        fig = plt.figure(frameon=False)
+        w_in = mat.shape[1] / dpi
+        h_in = mat.shape[0] / dpi
+        fig.set_size_inches(w_in, h_in)
+    else:
+        figsize = 14
+        fig = plt.figure(figsize=(figsize, figsize))
+
+    # Axis
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    if contents_only:
+        ax.set_axis_off()
+    fig.add_axes(ax)
 
     # Set title
-    if figtitle is not None:
+    if (not contents_only) and (figtitle is not None):
         ax.set_title(figtitle)
 
     if center_around_zero:
@@ -368,16 +390,17 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
         plt.set_cmap('bwr') # blue for negative, white for zero, red for positive
 
         # Generate heatmap with matrix entries
-        im = ax.imshow(mat, interpolation='none', vmin=v_min, vmax=v_max)
+        im = ax.imshow(mat, cmap=cmap, interpolation='none', vmin=v_min, vmax=v_max)
     else:
         # Generate heatmap with matrix entries
-        im = ax.imshow(mat, interpolation='none')
+        im = ax.imshow(mat, cmap=cmap, interpolation='none')
 
-    # Colorbar
-    # Create an axes on the right side of ax; width will be 4% of ax,
-    # and the padding between cax and ax will be fixed at 0.1 inch
-    cax = make_axes_locatable(ax).append_axes('right', size='4%', pad=0.2)
-    plt.colorbar(im, cax=cax)
+    if not contents_only:
+        # Colorbar
+        # Create an axes on the right side of ax; width will be 4% of ax,
+        # and the padding between cax and ax will be fixed at 0.1 inch
+        cax = make_axes_locatable(ax).append_axes('right', size='4%', pad=0.2)
+        plt.colorbar(im, cax=cax)
 
     # Make directory, if necessary
     outdir = dirname(outpath)
@@ -385,7 +408,10 @@ def matrix_as_heatmap(mat, center_around_zero=False, outpath='./matrix_as_heatma
         makedirs(outdir, exist_ok=True)
 
     # Save plot
-    plt.savefig(outpath, bbox_inches='tight')
+    if contents_only:
+        fig.savefig(outpath, dpi=dpi)
+    else:
+        fig.savefig(outpath, bbox_inches='tight')
 
     plt.close('all')
 
