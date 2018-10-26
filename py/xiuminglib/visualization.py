@@ -15,9 +15,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+import matplotlib.colors as mcolors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D # noqa; pylint: disable=unused-import
-import matplotlib.colors as mcolors
 
 import config
 logger, thisfile = config.create_logger(abspath(__file__))
@@ -369,6 +369,7 @@ def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
                       contents_only=False, figtitle=None):
     """
     Visualizes a matrix as heatmap
+        Functional with matplotlib 2.0.2, but buggy with 3.0.0
 
     Args:
         mat: Matrix to visualize as heatmp
@@ -403,29 +404,26 @@ def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
         fig.set_size_inches(w_in, h_in)
     else:
         figsize = 14
-        fig = plt.figure(figsize=(figsize, figsize))
+        plt.figure(figsize=(figsize, figsize))
 
     # Axis
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
     if contents_only:
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
         ax.set_axis_off()
-    fig.add_axes(ax)
+        fig.add_axes(ax)
+    else:
+        ax = plt.gca()
 
     # Set title
     if (not contents_only) and (figtitle is not None):
         ax.set_title(figtitle)
 
     if center_around_zero:
-        # vmin and vmax are set such that 0 is always no color (white)
         v_abs_max = max(abs(np.nanmin(mat)), abs(np.nanmax(mat)))
         v_max, v_min = v_abs_max, -v_abs_max
-        plt.set_cmap('bwr') # blue for negative, white for zero, red for positive
-
-        # Generate heatmap with matrix entries
         im = ax.imshow(mat, cmap=cmap, interpolation='none', vmin=v_min, vmax=v_max)
     else:
-        # Generate heatmap with matrix entries
-        im = ax.imshow(mat, cmap=cmap, interpolation='none')
+        im = ax.imshow(mat, interpolation='none')
 
     if not contents_only:
         # Colorbar
@@ -442,10 +440,10 @@ def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
     # Save plot
     if contents_only:
         fig.savefig(outpath, dpi=dpi)
+        fig.clf()
     else:
-        fig.savefig(outpath, bbox_inches='tight')
-
-    plt.close('all')
+        plt.savefig(outpath, bbox_inches='tight')
+        plt.close('all')
 
 
 def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=None):
