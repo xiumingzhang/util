@@ -8,7 +8,7 @@ Contributor: Xingyuan Sun
 """
 
 import re
-from os.path import abspath
+from os.path import abspath, basename
 import numpy as np
 import bpy
 import bmesh
@@ -423,21 +423,20 @@ def color_vertices(obj, vert_ind, colors):
     logger.warning("    ..., so node tree of '%s' has changed", obj.name)
 
 
-def setup_diffuse_nodetree(obj, roughness=0, color=None):
+def setup_diffuse_nodetree(obj, texture, roughness=0):
     """
-    Set up a diffuse texture node tree for imported object bundled with texture map
-        or a diffuse color node tree for an object without material or texture map
-        Mathematically, it's either Lambertian (no roughness) or Oren-Nayar (with roughness)
+    Set up a diffuse texture node tree for a texture map (carelessly mapped)
+        or a pure color. Mathematically, it's either Lambertian (no roughness)
+        or Oren-Nayar (with roughness)
 
     Args:
         obj: Object bundled with texture map
             bpy_types.Object
+        texture: Path to the texture image, or RGBA values
+            String or a 4-tuple of floats ranging from 0 to 1
         roughness: Roughness in Oren-Nayar model
             Float
             Optional; defaults to 0, i.e., Lambertian
-        color: RGBA; only useful when object does not have a texture map
-            4-tuple of floats ranging from 0 to 1
-            Optional; defaults to None
     """
     logger.name = thisfile + '->setup_diffuse_nodetree()'
 
@@ -447,34 +446,31 @@ def setup_diffuse_nodetree(obj, roughness=0, color=None):
         raise NotImplementedError(engine)
 
     node_tree, nodes = _clear_nodetree_for_active_material(obj)
-    texture = obj.active_material.active_texture
 
-    if texture is not None:
-        # Bundled texture found -- set up diffuse texture node tree
+    if isinstance(texture, str):
+        # For texture map
         nodes.new('ShaderNodeTexImage')
-        nodes['Image Texture'].image = texture.image
+        bpy.data.images.load(texture, check_existing=True)
+        nodes['Image Texture'].image = bpy.data.images[basename(texture)]
+        nodes.new('ShaderNodeTexCoord')
         nodes.new('ShaderNodeBsdfDiffuse')
         nodes.new('ShaderNodeOutputMaterial')
-        node_tree.links.new(nodes['Image Texture'].outputs[0], nodes['Diffuse BSDF'].inputs[0])
-        node_tree.links.new(nodes['Diffuse BSDF'].outputs[0], nodes['Material Output'].inputs[0])
+        node_tree.links.new(nodes['Texture Coordinate'].outputs['Generated'],
+                            nodes['Image Texture'].inputs['Vector'])
+        node_tree.links.new(nodes['Image Texture'].outputs['Color'],
+                            nodes['Diffuse BSDF'].inputs['Color'])
+        node_tree.links.new(nodes['Diffuse BSDF'].outputs['BSDF'],
+                            nodes['Material Output'].inputs['Surface'])
 
-        if color is not None:
-            logger.warning("%s has a texture map associated with it -- `color` argument ignored", obj.name)
-
-    else:
-        # No texture found -- set up diffuse color tree
-        if color is None:
-            color = (1, 1, 1, 1)
-            logger.warning((
-                "%s has no texture map associated with it, "
-                "and you have not provided any value for argument `color`, "
-                "so opaque white color is used"
-            ), obj.name)
-
+    elif isinstance(texture, tuple):
+        color = texture
         nodes.new('ShaderNodeBsdfDiffuse')
         nodes['Diffuse BSDF'].inputs[0].default_value = color
         nodes.new('ShaderNodeOutputMaterial')
         node_tree.links.new(nodes['Diffuse BSDF'].outputs[0], nodes['Material Output'].inputs[0])
+
+    else:
+        raise TypeError(texture)
 
     # Roughness
     node_tree.nodes['Diffuse BSDF'].inputs[1].default_value = roughness

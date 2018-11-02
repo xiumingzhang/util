@@ -394,7 +394,11 @@ def render_depth(outprefix, cam=None, obj_names=None, ray_depth=False):
     # Render z pass, without anti-aliasing to avoid values interpolated between
     # real depth values (e.g., 1.5) and large background depth values (e.g., 1e10)
     scene.render.use_antialiasing = False
-    result_socket = nodes['Render Layers'].outputs['Z']
+    scene.use_nodes = True
+    try:
+        result_socket = nodes['Render Layers'].outputs['Z']
+    except KeyError:
+        result_socket = nodes['Render Layers'].outputs['Depth']
     outpath_z = _render(scene, outnode, result_socket, outprefix + '_z')
 
     # Render alpha pass, with anti-aliasing to get a soft mask for blending
