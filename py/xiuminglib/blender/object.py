@@ -425,14 +425,14 @@ def color_vertices(obj, vert_ind, colors):
 
 def setup_diffuse_nodetree(obj, texture, roughness=0):
     """
-    Set up a diffuse texture node tree for a texture map (carelessly mapped)
-        or a pure color. Mathematically, it's either Lambertian (no roughness)
-        or Oren-Nayar (with roughness)
+    Set up a diffuse texture node tree for the bundled texture, an external
+        texture map (carelessly mapped), or a pure color. Mathematically,
+        it's either Lambertian (no roughness) or Oren-Nayar (with roughness)
 
     Args:
         obj: Object bundled with texture map
             bpy_types.Object
-        texture: Path to the texture image, or RGBA values
+        texture: 'bundled', path to the texture image, or RGBA values
             String or a 4-tuple of floats ranging from 0 to 1
         roughness: Roughness in Oren-Nayar model
             Float
@@ -448,15 +448,21 @@ def setup_diffuse_nodetree(obj, texture, roughness=0):
     node_tree, nodes = _clear_nodetree_for_active_material(obj)
 
     if isinstance(texture, str):
-        # For texture map
         nodes.new('ShaderNodeTexImage')
-        bpy.data.images.load(texture, check_existing=True)
-        nodes['Image Texture'].image = bpy.data.images[basename(texture)]
-        nodes.new('ShaderNodeTexCoord')
+        if texture == 'bundled':
+            texture = obj.active_material.active_texture
+            assert texture is not None, "No bundled texture found"
+            img = texture.image
+        else:
+            # Path given -- external texture map
+            bpy.data.images.load(texture, check_existing=True)
+            img = bpy.data.images[basename(texture)]
+            nodes.new('ShaderNodeTexCoord') # careless
+            node_tree.links.new(nodes['Texture Coordinate'].outputs['Generated'],
+                                nodes['Image Texture'].inputs['Vector'])
+        nodes['Image Texture'].image = img
         nodes.new('ShaderNodeBsdfDiffuse')
         nodes.new('ShaderNodeOutputMaterial')
-        node_tree.links.new(nodes['Texture Coordinate'].outputs['Generated'],
-                            nodes['Image Texture'].inputs['Vector'])
         node_tree.links.new(nodes['Image Texture'].outputs['Color'],
                             nodes['Diffuse BSDF'].inputs['Color'])
         node_tree.links.new(nodes['Diffuse BSDF'].outputs['BSDF'],
