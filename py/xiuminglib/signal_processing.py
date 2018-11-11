@@ -247,8 +247,8 @@ def matrix_for_real_spherical_harmonics(l, n_lat, coord_convention='colatitude-a
         ymat: Transform matrix whose row i, when dotting with flattened image (column) vector,
             gives the coefficient for i-th harmonic, where i = (l + 1) * l + m; the spherical
             function to transform (in the form of 2D image indexed by two angles) should be
-            flattened in row-major order: the row index varies the slowest, and the column index
-            the quickest
+            flattened, with .ravel(), in row-major order: the row index varies the slowest,
+            and the column index the quickest
             Numpy array of shape ((l + 1) ** 2, 2 * n_lat ** 2)
         areas_on_unit_sphere: Area of the unit sphere covered by each sample point; this is
             proportional to sine of colatitude and has nothing to do with azimuth/longitude;
