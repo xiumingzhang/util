@@ -17,14 +17,16 @@ def timeit(somefunc):
     """
     Outputs the time a function takes to execute
     """
-    logger.name = thisfile + '->@timeit'
+    logger_name = thisfile + '->@timeit'
 
     def wrapper(*arg, **kwargs):
         funcname = somefunc.__name__
+        logger.name = logger_name
         logger.info("Function %s started", funcname)
         t0 = time()
         results = somefunc(*arg, **kwargs)
         t = time() - t0
+        logger.name = logger_name
         logger.info("    ... and done in %.2f seconds", t)
         return results
 
@@ -37,7 +39,7 @@ def existok(makedirs_func):
     where one parallel worker checks the folder doesn't exist and wants to
     create it with another worker doing so faster
     """
-    logger.name = thisfile + '->@existok'
+    logger_name = thisfile + '->@existok'
 
     def wrapper(*args, **kwargs):
         try:
@@ -45,6 +47,7 @@ def existok(makedirs_func):
         except OSError as e:
             if e.errno != 17:
                 raise
+            logger.name = logger_name
             logger.debug("%s already exists, but that is OK", args[0])
     return wrapper
 

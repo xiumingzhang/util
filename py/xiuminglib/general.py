@@ -6,8 +6,9 @@ April 2018
 """
 
 import sys
-from os.path import abspath
+from os.path import abspath, join
 import re
+from glob import glob
 
 import config
 logger, thisfile = config.create_logger(abspath(__file__))
@@ -72,3 +73,32 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
                             serialized[(mi + len(x)):m_end],
                         )
                     )
+
+
+def sortglob(directory, filename, exts, ext_ignore_case=False):
+    """
+    Glob and then sort according to the pattern ending in multiple extensions
+
+    Args:
+        directory: Directory to glob
+            String; e.g., '/path/to/'
+        filename: Filename pattern excluding extensions
+            String; e.g., 'batch000_*'
+        exts: Extensions of interest
+            Set of strings; e.g., ('.png', '.PNG')
+        ext_ignore_case: Whether to ignore case for extensions
+            Boolean
+            Optional; defaults to False
+    """
+    ext_list = []
+    for ext in exts:
+        if not ext.startswith('.'):
+            ext = '.' + ext
+        if ext_ignore_case:
+            ext_list += [ext.lower(), ext.upper()]
+        else:
+            ext_list.append(ext)
+    files = []
+    for ext in ext_list:
+        files += glob(join(directory, filename + ext))
+    return sorted(files)
