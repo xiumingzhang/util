@@ -4,10 +4,11 @@ Utility Functions for Visualizations
 Xiuming Zhang, MIT CSAIL
 June 2017
 """
+
 # Should be imported before skimage to avoid the matplotlib backend problem
 
-from os import makedirs
-from os.path import dirname, exists, abspath
+from os import makedirs, environ
+from os.path import dirname, exists, abspath, join
 from pickle import dump
 import numpy as np
 
@@ -47,7 +48,7 @@ def pyplot_wrapper(*args,
                    xlim=None,
                    ylim=None,
                    grid=True,
-                   outpath='./plot.png',
+                   outpath=None,
                    **kwargs):
     """
     Convinience wrapper for matplotlib.pyplot functions that saves plots directly to the disk
@@ -98,10 +99,13 @@ def pyplot_wrapper(*args,
             Optional; defaults to True
         outpath: Path to which the visualization is saved
             String
-            Optional; defaults to './plot.png'
+            Optional; defaults to '$TMP_DIR/plot.png'
     """
     if ci is not None:
         assert func == 'plot', "CI makes sense only for `plot`"
+
+    if outpath is None:
+        outpath = join(environ.get('TMP_DIR', '~'), 'plot.png')
 
     plt.figure(figsize=figsize)
     ax = plt.gca()
@@ -196,7 +200,7 @@ def pyplot_wrapper(*args,
     plt.close('all')
 
 
-def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_image.png'):
+def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath=None):
     """
     Scatter plot on top of an image
 
@@ -218,11 +222,14 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
             Optional; defaults to (0, 0, 255), i.e., all red
         outpath: Path to which the visualization is saved
             String
-            Optional; defaults to './scatter_on_image.png'
+            Optional; defaults to '$TMP_DIR/scatter_on_image.png'
     """
     import cv2
 
     logger_name = thisfile + '->scatter_on_image()'
+
+    if outpath is None:
+        outpath = join(environ.get('TMP_DIR', '~'), 'scatter_on_image.png')
 
     thickness = -1 # for filled circles
 
@@ -265,7 +272,7 @@ def scatter_on_image(im, pts, size=2, bgr=(0, 0, 255), outpath='./scatter_on_ima
     cv2.imwrite(outpath, im)
 
 
-def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
+def matrix_as_image(arr, outpath=None, gamma=None):
     """
     Visualize an array into an image by putting minimum (across all channels) at 0
         and maximum at dtype_max
@@ -275,7 +282,7 @@ def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
             2D or 3D numpy array with one or three channels in the third dimension (RGB)
         outpath: Where to visualize the result
             String
-            Optional; defaults to './matrix_as_image.png'
+            Optional; defaults to '$TMP_DIR/matrix_as_image.png'
         gamma: For gamma correction
             Positive float
             Optional; defaults to None (no correction)
@@ -284,6 +291,9 @@ def matrix_as_image(arr, outpath='./matrix_as_image.png', gamma=None):
     from xiuminglib import image_processing as xi
 
     logger_name = thisfile + '->matrix_as_image()'
+
+    if outpath is None:
+        outpath = join(environ.get('TMP_DIR', '~'), 'matrix_as_image.png')
 
     dtype = 'uint8'
     dtype_max = np.iinfo(dtype).max
@@ -365,8 +375,7 @@ def make_colormap(low, high):
 
 
 def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
-                      outpath='./matrix_as_heatmap.png',
-                      contents_only=False, figtitle=None):
+                      outpath=None, contents_only=False, figtitle=None):
     """
     Visualizes a matrix as heatmap
         Functional with matplotlib 2.0.2, but buggy with 3.0.0
@@ -383,7 +392,7 @@ def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
             Optional; defaults to False (default colormap and auto range)
         outpath: Path to which the visualization is saved
             String
-            Optional; defaults to './matrix_as_heatmap.png'
+            Optional; defaults to '$TMP_DIR/matrix_as_heatmap.png'
         contents_only: Whether to plot only the contents (i.e., no borders, axes, etc.)
             Boolean
             Optional; defaults to False
@@ -391,6 +400,9 @@ def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
             String
             Optional; defaults to None (no title)
     """
+    if outpath is None:
+        outpath = join(environ.get('TMP_DIR', '~'), 'matrix_as_heatmap.png')
+
     if mat.ndim != 2:
         raise ValueError("'mat' must have exactly 2 dimensions, but has %d" % mat.ndim)
 
@@ -446,7 +458,7 @@ def matrix_as_heatmap(mat, cmap='viridis', center_around_zero=False,
         plt.close('all')
 
 
-def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=None):
+def uv_on_texmap(u, v, texmap, ft=None, outpath=None, figtitle=None):
     """
     Visualizes which points on texture map the vertices map to
 
@@ -470,12 +482,15 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath='./uv_on_texmap.png', figtitle=N
             Optional; defaults to None. If provided, use it to connect UV points
         outpath: Path to which the visualization is saved
             String
-            Optional; defaults to './uv_on_texmap.png'
+            Optional; defaults to '$TMP_DIR/uv_on_texmap.png'
         figtitle: Figure title
             String
             Optional; defaults to None (no title)
     """
     import cv2
+
+    if outpath is None:
+        outpath = join(environ.get('TMP_DIR', '~'), 'uv_on_texmap.png')
 
     figsize = 50
     dc = 'r' # color
@@ -574,7 +589,7 @@ def axes3d_wrapper(
         grid=True,
         views=None,
         equal_axes=False,
-        outpath='./plot.png',
+        outpath=None,
         **kwargs):
     """
     Convinience wrapper for mpl_toolkits.mplot3d.Axes3D functions that saves plots directly to the disk
@@ -622,9 +637,12 @@ def axes3d_wrapper(
             Optional; defaults to False
         outpath: Path to which the visualization is saved
             String ending with '.png' or '.pkl' (for offline interactive viewing)
-            Optional; defaults to './plot.png'
+            Optional; defaults to '$TMP_DIR/plot.png'
     """
     logger_name = thisfile + '->axes3d_wrapper()'
+
+    if outpath is not None:
+        outpath = join(environ.get('TMP_DIR', '~'), 'plot.png')
 
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d')
