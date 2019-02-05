@@ -165,107 +165,6 @@ def easyset(w=None, h=None,
         scene.render.image_settings.color_depth = color_depth
 
 
-def render(outpath, text=None, cam_names=None, hide=None):
-    """
-    Render current scene to images with cameras in scene
-
-    Args:
-        outpath: Path to save render to, e.g., '~/foo.png'
-            String
-        text: What text to be overlaid on image and how
-            Dictionary of the following format
-            {
-                'contents': 'Hello World!',
-                'bottom_left_corner': (50, 50),
-                'font_scale': 1,
-                'bgr': (255, 0, 0),
-                'thickness': 2
-            }
-            Optional; defaults to None
-        cam_names: Name(s) of camera(s) through which scene is rendered
-            String or list thereof
-            Optional; defaults to None (render all cameras)
-        hide: What objects should be hidden from which camera
-            Dictionary of the following format
-            {
-                'name-of-cam1': 'name-of-obj1',
-                'name-of-cam2': ['name-of-obj1', 'name-of-obj2']
-                    ...
-            }
-            Optional; defaults to None
-
-    Returns:
-        result_path: Path(s) to the rendering ('outpath' suffixed by camera name)
-            String or list thereof
-    """
-    import cv2
-
-    logger_name = thisfile + '->render()'
-
-    if isinstance(cam_names, str):
-        cam_names = [cam_names]
-
-    outdir = dirname(outpath)
-    if not exists(outdir):
-        makedirs(outdir)
-
-    result_path = []
-
-    # Save original hide_render attributes for later restoration
-    renderability = {}
-    objects = bpy.data.objects
-    for obj in objects:
-        renderability[obj.name] = obj.hide_render
-
-    # Render with all cameras
-    for cam in objects:
-        if cam.type == 'CAMERA':
-            if cam_names is None or cam.name in cam_names:
-
-                # Set active camera
-                bpy.context.scene.camera = cam
-
-                # Append camera name
-                ext = outpath.split('.')[-1]
-                outpath_final = outpath.replace('.' + ext, '_%s.' % cam.name + ext)
-                bpy.context.scene.render.filepath = outpath_final
-                result_path.append(outpath_final)
-
-                # Optionally set object visibility in rendering
-                for obj in objects:
-                    if obj.type == 'MESH':
-                        if hide is not None:
-                            ignore_list = hide.get(cam.name, [])
-                            if not isinstance(ignore_list, list):
-                                # Single object
-                                ignore_list = [ignore_list]
-                            obj.hide_render = obj.name in ignore_list
-                        else:
-                            obj.hide_render = False
-
-                # Render
-                bpy.ops.render.render(write_still=True)
-
-                # Optionally overlay text
-                if text is not None:
-                    im = cv2.imread(outpath_final, cv2.IMREAD_UNCHANGED)
-                    cv2.putText(im, text['contents'], text['bottom_left_corner'],
-                                cv2.FONT_HERSHEY_SIMPLEX, text['font_scale'],
-                                text['bgr'], text['thickness'])
-                    cv2.imwrite(outpath_final, im)
-
-                logger.name = logger_name
-                logger.info("Rendered with camera '%s'", cam.name)
-
-    # Restore hide_render attributes
-    for obj_name, hide_render_value in renderability.items():
-        objects[obj_name].hide_render = hide_render_value
-
-    if len(result_path) == 1:
-        return result_path[0]
-    return result_path
-
-
 def _render_prepare(cam, obj_names):
     if cam is None:
         cams = [o for o in bpy.data.objects if o.type == 'CAMERA']
@@ -356,6 +255,58 @@ def _render(scene, outnode, result_socket, outpath, exr=True, alpha=True):
         outpath += ext
     move(render_f, outpath)
     return outpath
+
+
+def render(outpath, cam=None, obj_names=None, text=None):
+    """
+    Render current scene to images with cameras in scene
+
+    Args:
+        outpath: Path to save render to, e.g., '~/foo.png'
+            String
+        cam: Camera through which scene is rendered
+            bpy_types.Object or None
+            Optional; defaults to None (the only camera in scene)
+        obj_names: Name(s) of object(s) of interest
+            String or list thereof
+            Optional; defaults to None (all objects)
+        text: What text to be overlaid on image and how
+            Dictionary of the following format
+            {
+                'contents': 'Hello World!',
+                'bottom_left_corner': (50, 50),
+                'font_scale': 1,
+                'bgr': (255, 0, 0),
+                'thickness': 2
+            }
+            Optional; defaults to None
+    """
+    logger_name = thisfile + '->render()'
+
+    outdir = dirname(outpath)
+    if not exists(outdir):
+        makedirs(outdir)
+
+    cam_name, obj_names, scene, outnode = _render_prepare(cam, obj_names)
+
+    result_socket = scene.node_tree.nodes['Render Layers'].outputs['Image']
+
+    # Render
+    exr = outpath.endswith('.exr')
+    outpath = _render(scene, outnode, result_socket, outpath, exr=exr, alpha=False)
+
+    # Optionally overlay text
+    if text is not None:
+        import cv2
+        im = cv2.imread(outpath, cv2.IMREAD_UNCHANGED)
+        cv2.putText(im, text['contents'], text['bottom_left_corner'],
+                    cv2.FONT_HERSHEY_SIMPLEX, text['font_scale'],
+                    text['bgr'], text['thickness'])
+        cv2.imwrite(outpath, im)
+
+    logger.name = logger_name
+    logger.info("%s rendered through '%s'", obj_names, cam_name)
+    logger.warning("    ...; node trees and renderability of these objects have changed")
 
 
 def render_depth(outprefix, cam=None, obj_names=None, ray_depth=False):
