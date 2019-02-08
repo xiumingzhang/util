@@ -487,6 +487,44 @@ def setup_diffuse_nodetree(obj, texture, roughness=0):
     logger.info("Diffuse node tree set up for '%s'", obj.name)
 
 
+def setup_glossy_nodetree(obj, color=(1, 1, 1, 1), roughness=0):
+    """
+    Set up a glossy node tree for a pure color. To extend it with texture maps,
+        see setup_diffuse_nodetree()
+
+    Args:
+        obj: Object bundled with texture map
+            bpy_types.Object
+        color: RGBA values
+            4-tuple of floats ranging from 0 to 1
+        roughness: Roughness
+            Float
+            Optional; defaults to 0, i.e., perfectly reflective
+    """
+    logger_name = thisfile + '->setup_glossy_nodetree()'
+
+    scene = bpy.context.scene
+    engine = scene.render.engine
+    if engine != 'CYCLES':
+        raise NotImplementedError(engine)
+
+    node_tree, nodes = _clear_nodetree_for_active_material(obj)
+
+    nodes.new('ShaderNodeBsdfGlossy')
+    nodes['Glossy BSDF'].inputs[0].default_value = color
+    nodes.new('ShaderNodeOutputMaterial')
+    node_tree.links.new(nodes['Glossy BSDF'].outputs[0], nodes['Material Output'].inputs[0])
+
+    # Roughness
+    node_tree.nodes['Glossy BSDF'].inputs['Roughness'].default_value = roughness
+
+    # Scene update necessary, as matrix_world is updated lazily
+    scene.update()
+
+    logger.name = logger_name
+    logger.info("Glossy node tree set up for '%s'", obj.name)
+
+
 def setup_emission_nodetree(obj, color=(1, 1, 1, 1), strength=1):
     """
     Set up an emission node tree for the object
