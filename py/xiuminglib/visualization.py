@@ -465,16 +465,14 @@ def uv_on_texmap(u, v, texmap, ft=None, outpath=None, figtitle=None):
     Args:
         u, v: UV coordinates of the vertices
             1D numpy array
-
-        (0, 1)
-            ^ v
-            |
-            |
-            |
-            |
-            +-----------> (1, 0)
-        (0, 0)        u
-
+                (0, 1)
+                    ^ v
+                    |
+                    |
+                    |
+                    |
+                    +-----------> (1, 0)
+                (0, 0)        u
         texmap: Loaded texture map or its path
             h-by-w (grayscale) or h-by-w-by-3 (color) numpy array or string
         ft: Texture faces

@@ -27,15 +27,23 @@ def load(exr_path):
             dict
     """
     from time import time
-    from subprocess import call
+    import subprocess
 
-    # Convert to .npz
     npz_f = '/tmp/%s_t%s.npz' % \
         (basename(exr_path).replace('.exr', ''), time())
-    call(['python2',
-          '%s/../../commandline/exr2npz.py' % dirname(abspath(__file__)),
-          exr_path,
-          npz_f])
+
+    # Convert to .npz
+    cwd = join(
+        dirname(abspath(__file__)),
+        '..', '..', 'commandline'
+    )
+    bash_cmd = 'python2 exr2npz.py %s %s' % (exr_path, npz_f)
+    process = subprocess.Popen(
+        bash_cmd.split(),
+        stdout=subprocess.PIPE,
+        cwd=cwd,
+    )
+    _, _ = process.communicate()
 
     # Load this .npz
     data = np.load(npz_f)
