@@ -24,7 +24,7 @@ def save_blend(outpath, delete_overwritten=False):
             Boolean
             Optional; defaults to False
     """
-    logger.name = thisfile + '->save_blend()'
+    logger_name = thisfile + '->save_blend()'
 
     outdir = dirname(outpath)
     if not exists(outdir):
@@ -32,7 +32,13 @@ def save_blend(outpath, delete_overwritten=False):
     elif exists(outpath) and delete_overwritten:
         remove(outpath)
 
-    bpy.ops.file.autopack_toggle()
+    try:
+        bpy.ops.file.autopack_toggle()
+    except RuntimeError:
+        logger.name = logger_name
+        logger.error("Failed to pack some files")
+
     bpy.ops.wm.save_as_mainfile(filepath=outpath)
 
+    logger.name = logger_name
     logger.info("Saved to %s", outpath)

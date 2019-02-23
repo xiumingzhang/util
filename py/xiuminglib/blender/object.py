@@ -367,6 +367,8 @@ def color_vertices(obj, vert_ind, colors):
     # Validate inputs
     if isinstance(vert_ind, int):
         vert_ind = [vert_ind]
+    else:
+        vert_ind = list(vert_ind)
     if isinstance(colors, tuple):
         colors = [colors] * len(vert_ind)
     assert (len(colors) == len(vert_ind)), \
@@ -374,10 +376,9 @@ def color_vertices(obj, vert_ind, colors):
     for i, c in enumerate(colors):
         c = tuple(c)
         if len(c) == 3:
-            pass
-            # colors[i] = c + (1,)
-        # elif len(c) == 4: # FIXME: some Blender version needs 4-tuples?
-        #     colors[i] = c
+            colors[i] = c + (1,)
+        elif len(c) == 4: # FIXME: some Blender version needs 4-tuples?
+            colors[i] = c
         else:
             raise ValueError("Wrong color length: %d" % len(c))
     if any(x > 1 for c in colors for x in c):
@@ -405,7 +406,10 @@ def color_vertices(obj, vert_ind, colors):
             except ValueError:
                 color_idx = None
             if color_idx is not None:
-                vcol_layer.data[loop_idx].color = colors[color_idx]
+                try:
+                    vcol_layer.data[loop_idx].color = colors[color_idx]
+                except:
+                    from IPython import embed; embed()
 
     # Set up nodes for vertex colors
     node_tree, nodes = _clear_nodetree_for_active_material(obj)
