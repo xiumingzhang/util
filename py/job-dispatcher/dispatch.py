@@ -1,3 +1,4 @@
+import sys
 from subprocess import call
 from random import shuffle
 from os import makedirs
@@ -108,7 +109,16 @@ def main(args):
     if 'expect_file' in config['OPTIONAL']:
         expect_file = join(curr_dir, config['OPTIONAL']['expect_file'])
         if not exists(expect_file):
-            logging.warning("`expect_file` provided, but non-existent, so skipping no jobs")
+            logging.warning(
+                "`expect_file` provided, but non-existent. Proceed? (y/n)"
+            )
+            need_input = True
+            while need_input:
+                response = input().lower()
+                if response in ('y', 'n'):
+                    need_input = False
+            if response == 'n':
+                sys.exit()
             expect_file = None
     else:
         expect_file = None
