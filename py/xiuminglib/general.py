@@ -34,7 +34,7 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
     import jsonpickle
     import yaml
 
-    logger.name = thisfile + '->print_attrs()'
+    logger_name = thisfile + '->print_attrs()'
 
     if isinstance(excerpts, str):
         excerpts = [excerpts]
@@ -43,21 +43,25 @@ def print_attrs(obj, excerpts=None, excerpt_win_size=60, max_recursion_depth=Non
     try:
         serialized = jsonpickle.encode(obj, max_depth=max_recursion_depth)
     except RecursionError as e:
+        logger.name = logger_name
         logger.error("RecursionError: %s! Please specify a limit to retry",
                      str(e))
         sys.exit(1)
 
     if excerpts is None:
         # Print all attributes
+        logger.name = logger_name
         logger.info("All attributes:")
         print(yaml.dump(yaml.load(serialized), indent=4))
     else:
         for x in excerpts:
             # For each attribute of interest, print excerpts containing it
+            logger.name = logger_name
             logger.info("Excerpt(s) containing '%s':", x)
 
             mis = [m.start() for m in re.finditer(x, serialized)]
             if not mis:
+                logger.name = logger_name
                 logger.info("%s: No matches! Retry maybe with deeper recursion")
             else:
                 for mii, mi in enumerate(mis):
@@ -102,3 +106,32 @@ def sortglob(directory, filename, exts, ext_ignore_case=False):
     for ext in ext_list:
         files += glob(join(directory, filename + ext))
     return sorted(files)
+
+
+def ask_to_proceed(msg, level='warning'):
+    """
+    Pause there to ask the user whether to proceed
+
+    Args:
+        msg: Message to display to the user
+            String
+        level: Message level, essentially deciding the message color
+            'info' | 'warning' | 'error'
+            Optional; defaults to 'warning'
+    """
+    logger_name = thisfile + '->ask_to_proceed()'
+
+    logger_print = getattr(logger, level)
+    logger.name = logger_name
+    logger_print(msg)
+    logger_print("Proceed? (y/n)")
+    need_input = True
+    while need_input:
+        response = input().lower()
+        if response in ('y', 'n'):
+            need_input = False
+        if need_input:
+            logger.name = logger_name
+            logger.error("Enter only y or n!")
+    if response == 'n':
+        sys.exit()

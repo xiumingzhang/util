@@ -1,38 +1,38 @@
-import sys
-from subprocess import call
+from shlex import split
+from subprocess import Popen
 from random import shuffle
 from os import makedirs
 from os.path import exists, join, dirname, realpath, basename, splitext
 from shutil import rmtree
-from ast import literal_eval
 from argparse import ArgumentParser
 from configparser import ConfigParser
-import logging
-from tqdm import tqdm
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
-
-logging.basicConfig(level=logging.INFO)
+from xiuminglib import general as xg
 
 exec_client = join(dirname(realpath(__file__)), 'exec_client.py')
 
 
-def send_jobs(machine_list, curr_dir, pool_dir, prefix, dry_run=False, exec_args=''):
+def send_jobs(machine_list, curr_dir, pool_dir, prefix,
+              dry_run=False, exec_args=''):
+    # Generate SSH commands
     cmds = []
     for i, x in enumerate(machine_list):
         cmds_file = join(pool_dir, '{}_{:09d}.cmds'.format(prefix, i))
         expects_file = join(pool_dir, '{}_{:09d}.expects'.format(prefix, i))
         cmd = 'ssh -f vision{} "cd {}; python {} {} {} {}"'.format(
-            x, curr_dir, exec_client, exec_args, cmds_file, expects_file)
+            x, curr_dir, exec_client, exec_args, cmds_file, expects_file
+        )
         cmds.append(cmd)
     with open(join(pool_dir, 'ssh.cmds'), 'w') as f:
         for x in cmds:
             f.write(x + '\n')
+    # Dry run or "wet" run
     if dry_run:
         for x in cmds:
-            logging.info("%s", x)
+            print(x)
     else:
         for x in cmds:
-            call(x, shell=True)
+            child = Popen(split(x))
+            _, _ = child.communicate()
 
 
 def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
@@ -49,8 +49,7 @@ def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
         m_id += 1
         if m_id >= n_machines:
             m_id = 0
-    logging.info("Generating commands for all machines into pool...")
-    for mi, thismachine_cmds in enumerate(tqdm(machine_cmds)):
+    for mi, thismachine_cmds in enumerate(machine_cmds):
         outf = join(pool_dir, '{}_{:09d}.cmds'.format(prefix, mi))
         with open(outf, 'w') as f:
             for cmd in thismachine_cmds:
@@ -94,18 +93,6 @@ def gen_full_cmds(cmd_prefix, params_file, expect_file):
     return cmds, cmd_expects
 
 
-def ask_to_proceed(msg, level='warning'):
-    logging_print = getattr(logging, level)
-    logging_print(msg + " Proceed? (y/n)")
-    need_input = True
-    while need_input:
-        response = input().lower()
-        if response in ('y', 'n'):
-            need_input = False
-    if response == 'n':
-        sys.exit()
-
-
 def main(args):
     # Absolute paths
     config = ConfigParser(inline_comment_prefixes='#')
@@ -121,16 +108,16 @@ def main(args):
     if 'expect_file' in config['OPTIONAL']:
         expect_file = join(curr_dir, config['OPTIONAL']['expect_file'])
         if not exists(expect_file):
-            ask_to_proceed("`expect_file` provided, but non-existent.")
+            xg.ask_to_proceed("`expect_file` provided, but non-existent.")
             expect_file = None
     else:
         expect_file = None
 
     # Machines
-    cpu_machines = [x for x in literal_eval(config['MACHINES']['cpu'])]
+    cpu_machines = [x for x in eval(config['MACHINES']['cpu'])]
+    gpu_machines = [x for x in eval(config['MACHINES']['gpu'])]
     shuffle(cpu_machines) # in-place
-    gpu_machines = [x for x in literal_eval(config['MACHINES']['gpu'])]
-    shuffle(gpu_machines) # in-place
+    shuffle(gpu_machines)
     machine_list = []
     for x in cpu_machines:
         machine_list.append('%02d' % x)
@@ -143,8 +130,9 @@ def main(args):
 
     split_jobs(cmds, cmd_expects, len(machine_list), pool_dir, job_name)
 
-    from IPython import embed; embed()
-    ask_to_proceed("", level='info')
+    msg = "The first job will be:\n" + \
+        "\n".join(['\t' + x for x in split(cmds[0])])
+    xg.ask_to_proceed(msg, level='info')
 
     send_jobs(machine_list, curr_dir, pool_dir, job_name,
               dry_run=args.dryrun, exec_args=exec_args)

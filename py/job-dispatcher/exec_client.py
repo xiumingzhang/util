@@ -1,18 +1,20 @@
-from multiprocessing import Pool
-from subprocess import call
-from socket import gethostname
 from os.path import exists
+from shlex import split
+from multiprocessing import Pool
+from subprocess import Popen, PIPE
+from socket import gethostname
 from argparse import ArgumentParser
-from tqdm import tqdm
 import logging
+from tqdm import tqdm
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 
 
 def wrapper(cmd):
-    s = call(cmd.strip(), shell=True)
-    return [s, cmd]
+    child = Popen(split(cmd.strip()), stdout=PIPE)
+    out, err = child.communicate()
+    return (cmd, out, err)
 
 
 def main(args):
@@ -21,13 +23,19 @@ def main(args):
     with open(args.expects_file) as f:
         expects_all = f.readlines()
 
-    if args.t < 0:
-        p = Pool()
-    else:
-        p = Pool(args.t)
+    # Number of workers
+    if not args.d:
+        if args.t < 0:
+            p = Pool()
+        else:
+            p = Pool(args.t)
 
+    # Run only the first N jobs?
     if args.c > 0:
         cmds_all = cmds_all[0:args.c]
+
+    # Decide which commands to run according to what to expect
+    # and what already exists
     cmds = []
     for i, x in enumerate(cmds_all):
         for f in expects_all[i].strip().split(' '):
@@ -36,27 +44,33 @@ def main(args):
                 # Found one file missing, need to re-run this job
                 break
 
+    # Dry run?
     hostname = gethostname()
-    log_file = args.cmds_file.replace('.cmds', '.cmds.log')
-    with open(log_file, 'a') as f:
-        f.write("Host: %s\n\n" % hostname)
-
     if args.d:
         for x in cmds:
             logging.info("(%s) %s", hostname, x)
         return
 
+    # Log files
+    out_log = args.cmds_file.replace('.cmds', '.cmds.out')
+    err_log = args.cmds_file.replace('.cmds', '.cmds.err')
+    with open(out_log, 'w') as oh, open(err_log, 'w') as eh:
+        oh.write("Host: %s\n\n" % hostname)
+        eh.write("Host: %s\n\n" % hostname)
+
+    # Send jobs to p
     with tqdm(total=int(len(cmds) / args.e), desc=hostname) as pbar:
         cnt = 0
-        for i, s in enumerate(p.imap_unordered(wrapper, cmds)):
-            if s[0] != 0:
-                with open(log_file, 'a') as f:
-                    f.write('{}: {}\n'.format(s[1], s[0]))
+        for i, (cmd, out, err) in enumerate(
+                p.imap_unordered(wrapper, cmds)
+        ):
+            with open(out_log, 'a') as oh, open(err_log, 'a') as eh:
+                oh.write('\n{}\n\n{}\n'.format(cmd, out))
+                eh.write('\n{}\n\n{}\n'.format(cmd, err))
             cnt += 1
             if cnt % args.e == 0:
                 pbar.update()
 
-    pbar.close()
     p.close()
     p.join()
 

@@ -45,7 +45,9 @@ def _kill(machine_name, pid):
 def kill(machine_name, user, job_name):
     if on_this_machine(machine_name):
         return
-    if ping_ok(machine_name):
+    if not ping_ok(machine_name):
+        logging.warning("%s: unresponsive", machine_name)
+    else:
         pids = get_pids(machine_name, user, job_name)
         logging.info("%s: %s found", machine_name, pids)
         for pid in pids:
