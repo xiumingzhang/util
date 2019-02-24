@@ -94,6 +94,18 @@ def gen_full_cmds(cmd_prefix, params_file, expect_file):
     return cmds, cmd_expects
 
 
+def ask_to_proceed(msg, level='warning'):
+    logging_print = getattr(logging, level)
+    logging_print(msg + " Proceed? (y/n)")
+    need_input = True
+    while need_input:
+        response = input().lower()
+        if response in ('y', 'n'):
+            need_input = False
+    if response == 'n':
+        sys.exit()
+
+
 def main(args):
     # Absolute paths
     config = ConfigParser(inline_comment_prefixes='#')
@@ -109,22 +121,13 @@ def main(args):
     if 'expect_file' in config['OPTIONAL']:
         expect_file = join(curr_dir, config['OPTIONAL']['expect_file'])
         if not exists(expect_file):
-            logging.warning(
-                "`expect_file` provided, but non-existent. Proceed? (y/n)"
-            )
-            need_input = True
-            while need_input:
-                response = input().lower()
-                if response in ('y', 'n'):
-                    need_input = False
-            if response == 'n':
-                sys.exit()
+            ask_to_proceed("`expect_file` provided, but non-existent.")
             expect_file = None
     else:
         expect_file = None
 
     # Machines
-    cpu_machines = [x for x in eval(config['MACHINES']['cpu'])]
+    cpu_machines = [x for x in literal_eval(config['MACHINES']['cpu'])]
     shuffle(cpu_machines) # in-place
     gpu_machines = [x for x in literal_eval(config['MACHINES']['gpu'])]
     shuffle(gpu_machines) # in-place
@@ -140,9 +143,11 @@ def main(args):
 
     split_jobs(cmds, cmd_expects, len(machine_list), pool_dir, job_name)
 
+    from IPython import embed; embed()
+    ask_to_proceed("", level='info')
+
     send_jobs(machine_list, curr_dir, pool_dir, job_name,
-              dry_run=args.dryrun,
-              exec_args=exec_args)
+              dry_run=args.dryrun, exec_args=exec_args)
 
 
 if __name__ == '__main__':
