@@ -37,7 +37,7 @@ def get_pids(machine_name, user, job_name):
 def _kill(machine_name, pid):
     cmd = ('ssh -o PasswordAuthentication=no -o LogLevel=QUIET -t %s '
            'kill -9 %s') % (machine_name, pid)
-    child = Popen(split(cmd), stdout=PIPE)
+    child = Popen(split(cmd))
     _, _ = child.communicate()
     return child.returncode == 0
 

@@ -31,7 +31,7 @@ def send_jobs(machine_list, curr_dir, pool_dir, prefix,
             print(x)
     else:
         for x in cmds:
-            child = Popen(split(x))
+            child = Popen(split(x)) # stdout and stderr handled in client
             _, _ = child.communicate()
 
 

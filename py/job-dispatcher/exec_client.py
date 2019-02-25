@@ -4,16 +4,20 @@ from multiprocessing import Pool
 from subprocess import Popen, PIPE
 from socket import gethostname
 from argparse import ArgumentParser
-import logging
 from tqdm import tqdm
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
 
-logging.basicConfig(level=logging.INFO)
+sepline = ''.join(["*"] * 50)
 
 
 def wrapper(cmd):
-    child = Popen(split(cmd.strip()), stdout=PIPE)
+    child = Popen(split(cmd.strip()), stdout=PIPE, stderr=PIPE)
     out, err = child.communicate()
+    out = out.decode()
+    err = err.decode()
+    if out is not None:
+        out = [x + "\n" for x in out.split('\n')]
+    if err is not None:
+        err = [x + "\n" for x in err.split('\n')]
     return (cmd, out, err)
 
 
@@ -48,7 +52,7 @@ def main(args):
     hostname = gethostname()
     if args.d:
         for x in cmds:
-            logging.info("(%s) %s", hostname, x)
+            print("(%s) %s" % (hostname, x))
         return
 
     # Log files
@@ -65,8 +69,14 @@ def main(args):
                 p.imap_unordered(wrapper, cmds)
         ):
             with open(out_log, 'a') as oh, open(err_log, 'a') as eh:
-                oh.write('\n{}\n\n{}\n'.format(cmd, out))
-                eh.write('\n{}\n\n{}\n'.format(cmd, err))
+                oh.write(sepline + "\n\n")
+                eh.write(sepline + "\n\n")
+                oh.write(cmd + "\n")
+                eh.write(cmd + "\n")
+                oh.writelines(out)
+                eh.writelines(err)
+                oh.write("\n\n" + sepline + "\n\n")
+                eh.write("\n\n" + sepline + "\n\n")
             cnt += 1
             if cnt % args.e == 0:
                 pbar.update()
