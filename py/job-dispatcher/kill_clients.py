@@ -1,9 +1,9 @@
 from sys import argv
 from shlex import split
 from subprocess import check_output, Popen, PIPE, DEVNULL
+
 import logging
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
-
 logging.basicConfig(level=logging.INFO)
 
 
