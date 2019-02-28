@@ -1,6 +1,10 @@
 from sys import argv
 from shlex import split
 from subprocess import check_output, Popen, PIPE, DEVNULL
+from multiprocessing import Pool
+from collections import OrderedDict
+from operator import itemgetter
+from tqdm import tqdm
 
 import logging
 import logging_colorer # noqa: F401 # pylint: disable=unused-import
@@ -29,12 +33,12 @@ def get_pids(machine_name, user, job_name):
             continue
         p_list = p.split(None, 4)
         if p_list[1] == '?':
-            # Not attached any pseudoterminal
+            # Not attached to any pseudoterminal
             pids.append(p_list[0])
     return pids
 
 
-def _kill(machine_name, pid):
+def ssh_kill_process(machine_name, pid):
     cmd = ('ssh -o PasswordAuthentication=no -o LogLevel=QUIET -t %s '
            'kill -9 %s') % (machine_name, pid)
     child = Popen(split(cmd), stdout=DEVNULL, stderr=DEVNULL)
@@ -42,29 +46,62 @@ def _kill(machine_name, pid):
     return child.returncode == 0
 
 
-def kill(machine_name, user, job_name):
+def kill_machine(args):
+    machine_name, user, job_name = args
+
+    msgs = OrderedDict()
+    msg_id = 0
+    msg_prefix = "%s: " # to be formatted as machine name
+
     if on_this_machine(machine_name):
-        return
+        msgs[(msg_id, 'info')] = msg_prefix + "Skip killing, since you are on it"
+        msg_id += 1
+        return (machine_name, msgs)
+
     if not ping_ok(machine_name):
-        logging.warning("%s: unresponsive", machine_name)
+        msgs[(msg_id, 'error')] = msg_prefix + "Can't ping"
+        msg_id += 1
     else:
         pids = get_pids(machine_name, user, job_name)
-        logging.info("%s: %s found", machine_name, pids)
+        msgs[(msg_id, 'info')] = msg_prefix + "%s found" % pids
+        msg_id += 1
         for pid in pids:
-            killed = _kill(machine_name, pid)
+            killed = ssh_kill_process(machine_name, pid)
             if killed:
-                logging.info("%s: %s killed", machine_name, pid)
+                msgs[(msg_id, 'info')] = msg_prefix + "%s killed" % pid
             else:
-                logging.warning("%s: %s NOT killed", machine_name, pid)
+                msgs[(msg_id, 'warning')] = msg_prefix + "%s NOT killed" % pid
+            msg_id += 1
+    return (machine_name, msgs)
+
+
+def fix_messed_up_terminal():
+    cmd = 'stty sane'
+    child = Popen(split(cmd), stdout=DEVNULL, stderr=DEVNULL)
+    _, _ = child.communicate()
 
 
 def main(user, job_name):
     cpu_machines = ['vision%02d' % e for e in range(1, 39)]
-    gpu_machines = ['visiongpu%02d' % e for e in range(1, 21)]
+    gpu_machines = ['visiongpu%02d' % e for e in range(1, 40)]
     machine_names = cpu_machines + gpu_machines
 
+    args = []
     for m in machine_names:
-        kill(m, user, job_name)
+        args.append((m, user, job_name))
+
+    pool = Pool()
+    results = list(tqdm(pool.imap_unordered(kill_machine, args), total=len(args)))
+    pool.close()
+    pool.join()
+
+    fix_messed_up_terminal()
+
+    # Results returned out-of-order
+    for machine_name, msgs in sorted(results, key=itemgetter(0)):
+        for (_, level), msg in msgs.items():
+            logging_print = getattr(logging, level)
+            logging_print(msg, machine_name)
 
 
 if __name__ == '__main__':
