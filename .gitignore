@@ -1,6 +1,7 @@
 *.pyc
 *.swp
 *.m~
+.nfs*
 
 **/__pycache__
 **/external
