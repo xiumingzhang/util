@@ -81,10 +81,17 @@ def fix_messed_up_terminal():
     _, _ = child.communicate()
 
 
-def main(user, job_name):
+def main(user, job_name, where):
     cpu_machines = ['vision%02d' % e for e in range(1, 39)]
     gpu_machines = ['visiongpu%02d' % e for e in range(1, 40)]
-    machine_names = cpu_machines + gpu_machines
+    if where == 'cgpu':
+        machine_names = cpu_machines + gpu_machines
+    elif where == 'cpu':
+        machine_names = cpu_machines
+    elif where == 'gpu':
+        machine_names = gpu_machines
+    else:
+        raise NotImplementedError(where)
 
     args = []
     for m in machine_names:

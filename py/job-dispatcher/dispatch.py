@@ -142,15 +142,15 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser(description="Dispatch jobs to machines")
     parser.add_argument('config_file', type=str,
-                        help="path to the configuration file")
+                        help="Path to the configuration file")
     parser.add_argument('--dryrun', action='store_true',
-                        help="print commands without executing them")
+                        help="Print commands without executing them")
     parser.add_argument('--exec_seg', type=int,
-                        help="for exec_client: segment number for updating progress", default=-1)
+                        help="For exec_client: segment number for updating progress", default=-1)
     parser.add_argument('--exec_thread', type=int,
-                        help="for exec_client: thread number", default=-1)
+                        help="For exec_client: thread number", default=-1)
     parser.add_argument('--exec_cap', type=int,
-                        help="for exec_client: cap the task list to test on small batches", default=-1)
+                        help="For exec_client: cap the task list to test on small batches", default=-1)
     parser.add_argument('--exec_dryrun', action='store_true',
-                        help="for exec_client: print commands without executing")
+                        help="For exec_client: print commands without executing")
     main(parser.parse_args())
