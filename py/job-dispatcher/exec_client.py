@@ -1,26 +1,21 @@
 from os.path import exists
 from shlex import split
 from multiprocessing import Pool
-from subprocess import Popen, PIPE
+from subprocess import Popen
 from socket import gethostname
 from argparse import ArgumentParser
 from tqdm import tqdm
 
+
 sepline = ''.join(["*"] * 50)
 
 
-def run(cmd):
-    Popen(split(cmd.strip()))
-    return (cmd, '', '')
-    child = Popen(split(cmd.strip()), stdout=PIPE, stderr=PIPE)
-    out, err = child.communicate()
-    out = out.decode()
-    err = err.decode()
-    if out is not None:
-        out = [x + "\n" for x in out.split('\n')]
-    if err is not None:
-        err = [x + "\n" for x in err.split('\n')]
-    return (cmd, out, err)
+def job(job_args):
+    cmd, out_log, err_log = job_args
+    with open(out_log, 'w') as out_h, open(err_log, 'w') as err_h:
+        child = Popen(split(cmd), stdout=out_h, stderr=err_h)
+    _, _ = child.communicate() # wait for finishing
+    return cmd
 
 
 def main(args):
@@ -42,43 +37,28 @@ def main(args):
 
     # Decide which commands to run according to what to expect
     # and what already exists
-    cmds = []
-    for i, x in enumerate(cmds_all):
+    job_args = []
+    for i, cmd in enumerate(cmds_all):
+        cmd = cmd.strip()
+        out_log = args.cmds_file + '%09d.out' % i
+        err_log = args.cmds_file + '%09d.err' % i
         for f in expects_all[i].strip().split(' '):
             if not exists(f):
-                cmds.append(x)
+                job_args.append((cmd, out_log, err_log))
                 # Found one file missing, need to re-run this job
                 break
 
     # Dry run?
     hostname = gethostname()
     if args.d:
-        for x in cmds:
-            print("(%s) %s" % (hostname, x))
+        for (cmd, _, _) in job_args:
+            print("(%s) %s" % (hostname, cmd))
         return
 
-    # Log files
-    out_log = args.cmds_file.replace('.cmds', '.cmds.out')
-    err_log = args.cmds_file.replace('.cmds', '.cmds.err')
-    with open(out_log, 'w') as oh, open(err_log, 'w') as eh:
-        oh.write("Host: %s\n\n" % hostname)
-        eh.write("Host: %s\n\n" % hostname)
-
     # Send jobs to p
-    with tqdm(total=int(len(cmds) / args.e), desc=hostname) as pbar:
+    with tqdm(total=int(len(job_args) / args.e), desc=hostname) as pbar:
         cnt = 0
-        for i, (cmd, out, err) in enumerate(
-                p.imap_unordered(run, cmds)
-        ):
-            with open(out_log, 'a') as oh, open(err_log, 'a') as eh:
-                oh.write(sepline + "\n\n")
-                eh.write(sepline + "\n\n")
-                oh.write(cmd + "\n")
-                eh.write(cmd + "\n")
-                oh.writelines(out)
-                eh.writelines(err)
-                oh.write("\n\n" + sepline + "\n\n")
-                eh.write("\n\n" + sepline + "\n\n")
+        for i, _ in enumerate(p.imap_unordered(job, job_args)):
             cnt += 1
             if cnt % args.e == 0:
                 pbar.update()
