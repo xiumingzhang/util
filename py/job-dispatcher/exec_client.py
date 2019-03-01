@@ -9,7 +9,9 @@ from tqdm import tqdm
 sepline = ''.join(["*"] * 50)
 
 
-def wrapper(cmd):
+def run(cmd):
+    Popen(split(cmd.strip()))
+    return (cmd, '', '')
     child = Popen(split(cmd.strip()), stdout=PIPE, stderr=PIPE)
     out, err = child.communicate()
     out = out.decode()
@@ -66,7 +68,7 @@ def main(args):
     with tqdm(total=int(len(cmds) / args.e), desc=hostname) as pbar:
         cnt = 0
         for i, (cmd, out, err) in enumerate(
-                p.imap_unordered(wrapper, cmds)
+                p.imap_unordered(run, cmds)
         ):
             with open(out_log, 'a') as oh, open(err_log, 'a') as eh:
                 oh.write(sepline + "\n\n")
