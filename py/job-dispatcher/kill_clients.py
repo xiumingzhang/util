@@ -63,14 +63,19 @@ def kill_machine(args):
         msg_id += 1
     else:
         pids = get_pids(machine_name, user, job_name)
-        msgs[(msg_id, 'info')] = msg_prefix + "%s found" % pids
-        msg_id += 1
+        pids_killed = []
         for pid in pids:
-            killed = ssh_kill_process(machine_name, pid)
-            if killed:
-                msgs[(msg_id, 'info')] = msg_prefix + "%s killed" % pid
-            else:
-                msgs[(msg_id, 'warning')] = msg_prefix + "%s NOT killed" % pid
+            if ssh_kill_process(machine_name, pid):
+                pids_killed.append(pid)
+        pids_unkilled = [x for x in pids if x not in pids_killed]
+        if not pids:
+            msgs[(msg_id, 'info')] = msg_prefix + "No clients found"
+            msg_id += 1
+        if pids_killed:
+            msgs[(msg_id, 'info')] = msg_prefix + "%s killed" % pids_killed
+            msg_id += 1
+        if pids_unkilled:
+            msgs[(msg_id, 'warning')] = msg_prefix + "%s NOT killed" % pids_unkilled
             msg_id += 1
     return (machine_name, msgs)
 
