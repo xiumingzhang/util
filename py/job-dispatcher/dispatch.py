@@ -8,6 +8,10 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 from xiuminglib import general as xg
 
+import logging
+import logging_colorer # noqa: F401 # pylint: disable=unused-import
+logging.basicConfig(level=logging.INFO)
+
 
 exec_client = join(dirname(realpath(__file__)), 'exec_client.py')
 
@@ -137,6 +141,8 @@ def main(args):
 
     send_jobs(machine_list, curr_dir, pool_dir, job_name,
               dry_run=args.dryrun, exec_args=exec_args)
+
+    logging.info("See stdout and stderr at: %s", pool_dir)
 
 
 if __name__ == '__main__':
