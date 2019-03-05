@@ -32,8 +32,8 @@ def main(args):
             p = Pool(args.t)
 
     # Run only the first N jobs?
-    if args.c > 0:
-        cmds_all = cmds_all[0:args.c]
+    if args.q > 0:
+        cmds_all = cmds_all[0:args.q]
 
     # Decide which commands to run according to what to expect
     # and what already exists
@@ -56,11 +56,11 @@ def main(args):
         return
 
     # Send jobs to p
-    with tqdm(total=int(len(job_args) / args.e), desc=hostname) as pbar:
+    with tqdm(total=int(len(job_args) / args.p), desc=hostname) as pbar:
         cnt = 0
         for i, _ in enumerate(p.imap_unordered(job, job_args)):
             cnt += 1
-            if cnt % args.e == 0:
+            if cnt % args.p == 0:
                 pbar.update()
 
     p.close()
@@ -72,11 +72,11 @@ if __name__ == '__main__':
     parser.add_argument('cmds_file', type=str, help="path to cmds_file")
     parser.add_argument('expects_file', type=str, help="path to expects_file")
     parser.add_argument('-t', type=int,
-                        help="number of threads per machine", default=-1)
-    parser.add_argument('-e', type=int,
-                        help="every N tasks to update progress bar once", default=1)
-    parser.add_argument('-c', type=int,
-                        help="cap the task list to test on small batches", default=-1)
+                        help="Number of threads per machine", default=-1)
+    parser.add_argument('-p', type=int,
+                        help="Update the progress bar every N jobs", default=1)
+    parser.add_argument('-q', type=int,
+                        help="Quit after N jobs to test on small batches", default=-1)
     parser.add_argument('-d', action='store_true',
-                        help="print command without executing")
+                        help="Print command without executing")
     main(parser.parse_args())

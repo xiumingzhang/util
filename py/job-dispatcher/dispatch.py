@@ -16,8 +16,7 @@ logging.basicConfig(level=logging.INFO)
 exec_client = join(dirname(realpath(__file__)), 'exec_client.py')
 
 
-def send_jobs(machine_list, curr_dir, pool_dir, prefix,
-              dry_run=False, exec_args=''):
+def send_jobs(machine_list, curr_dir, pool_dir, prefix, exec_args=''):
     # Generate SSH commands
     cmds = []
     for i, x in enumerate(machine_list):
@@ -30,14 +29,9 @@ def send_jobs(machine_list, curr_dir, pool_dir, prefix,
     with open(join(pool_dir, 'ssh.cmds'), 'w') as f:
         for x in cmds:
             f.write(x + '\n')
-    # Dry run or "wet" run
-    if dry_run:
-        for x in cmds:
-            print(x)
-    else:
-        for x in cmds:
-            child = Popen(split(x)) # stdout and stderr handled in client
-            _, _ = child.communicate()
+    for x in cmds:
+        child = Popen(split(x)) # stdout and stderr handled in client
+        _, _ = child.communicate()
 
 
 def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
@@ -65,19 +59,6 @@ def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
                 f.write(' '.join(es) + '\n')
 
 
-def gen_exec_args(args):
-    exec_args = ''
-    if args.exec_seg > 0:
-        exec_args += '-s {} '.format(args.exec_seg)
-    if args.exec_thread > 0:
-        exec_args += '-t {} '.format(args.exec_thread)
-    if args.exec_cap > 0:
-        exec_args += '-c {} '.format(args.exec_cap)
-    if args.exec_dryrun:
-        exec_args += '-d '
-    return exec_args
-
-
 def gen_full_cmds(cmd_prefix, params_file, expect_file):
     with open(params_file) as f:
         params = f.readlines()
@@ -98,65 +79,84 @@ def gen_full_cmds(cmd_prefix, params_file, expect_file):
     return cmds, cmd_expects
 
 
-def main(args):
-    # Absolute paths
-    config = ConfigParser(inline_comment_prefixes='#')
-    config.read(args.config_file)
-    curr_dir = config['ENVIRONMENT']['curr_dir']
-    job_file = join(curr_dir, config['JOB']['job_file'])
-    job_name = splitext(basename(job_file))[0]
-    cmd_prefix = '%s %s' % (config['JOB']['bin'], job_file)
-    params_file = join(curr_dir, config['JOB']['params_file'])
-    pool_dir = join(curr_dir, config['JOB']['pool_dir'])
-    rmtree(pool_dir, ignore_errors=True)
-    makedirs(pool_dir)
-    if 'expect_file' in config['OPTIONAL']:
-        expect_file = join(curr_dir, config['OPTIONAL']['expect_file'])
+def get_expect_file(curr_dir, config):
+    if 'expect_file' in config:
+        expect_file = join(curr_dir, config['expect_file'])
         if not exists(expect_file):
-            xg.ask_to_proceed("`expect_file` provided, but non-existent.")
+            xg.ask_to_proceed("<expect_file> provided, but non-existent")
             expect_file = None
     else:
         expect_file = None
+    return expect_file
 
-    # Machines
-    cpu_machines = [x for x in eval(config['MACHINES']['cpu'])]
-    gpu_machines = [x for x in eval(config['MACHINES']['gpu'])]
-    shuffle(cpu_machines) # in-place
-    shuffle(gpu_machines)
+
+def gen_exec_args(config):
+    client_threads = config.getint('client_threads', -1)
+    client_update_pbar_every = config.getint('client_update_pbar_every', 1)
+    client_quit_after = config.getint('client_quit_after', -1)
+    client_dryrun = config.getboolean('client_dryrun', False)
+    exec_args = '-p {} '.format(client_update_pbar_every)
+    exec_args += '-t {} '.format(client_threads)
+    exec_args += '-q {} '.format(client_quit_after)
+    if client_dryrun:
+        exec_args += '-d'
+    return exec_args
+
+
+def gen_machine_list(config, shuffle_machines=True):
+    cpu_machines = [x for x in eval(config['cpu'])]
+    gpu_machines = [x for x in eval(config['gpu'])]
+    if shuffle_machines:
+        shuffle(cpu_machines) # in-place
+        shuffle(gpu_machines)
     machine_list = []
     for x in cpu_machines:
         machine_list.append('%02d' % x)
     for x in gpu_machines:
         machine_list.append('gpu%02d' % x)
+    return machine_list
+
+
+def main(args):
+    config = ConfigParser(inline_comment_prefixes='#')
+    config.read(args.config_file)
+    config_env = config['ENVIRONMENT']
+    config_job = config['JOB']
+    config_machines = config['MACHINES']
+    config_opt = config['OPTIONAL']
+
+    curr_dir = config_env['curr_dir']
+    job_file = join(curr_dir, config_job['job_file'])
+    job_name = splitext(basename(job_file))[0]
+    cmd_prefix = '%s %s' % (config_job['bin'], job_file)
+    params_file = join(curr_dir, config_job['params_file'])
+
+    # Pool for stdout and stderr
+    pool_dir = join(curr_dir, config_job['pool_dir'])
+    rmtree(pool_dir, ignore_errors=True)
+    makedirs(pool_dir)
+    logging.info("See stdout and stderr at\n%s", pool_dir)
+
+    exec_args = gen_exec_args(config_opt)
+
+    expect_file = get_expect_file(curr_dir, config_opt)
+
+    machine_list = gen_machine_list(config_machines)
 
     cmds, cmd_expects = gen_full_cmds(cmd_prefix, params_file, expect_file)
 
-    exec_args = gen_exec_args(args)
-
     split_jobs(cmds, cmd_expects, len(machine_list), pool_dir, job_name)
 
-    msg = "The first job will be:\n" + \
+    msg = "The first job will be\n" + \
         "\n".join(['\t' + x for x in split(cmds[0])])
     xg.ask_to_proceed(msg, level='info')
 
     send_jobs(machine_list, curr_dir, pool_dir, job_name,
-              dry_run=args.dryrun, exec_args=exec_args)
-
-    logging.info("See stdout and stderr at: %s", pool_dir)
+              exec_args=exec_args)
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(description="Dispatch jobs to machines")
     parser.add_argument('config_file', type=str,
                         help="Path to the configuration file")
-    parser.add_argument('--dryrun', action='store_true',
-                        help="Print commands without executing them")
-    parser.add_argument('--exec_seg', type=int,
-                        help="For exec_client: segment number for updating progress", default=-1)
-    parser.add_argument('--exec_thread', type=int,
-                        help="For exec_client: thread number", default=-1)
-    parser.add_argument('--exec_cap', type=int,
-                        help="For exec_client: cap the task list to test on small batches", default=-1)
-    parser.add_argument('--exec_dryrun', action='store_true',
-                        help="For exec_client: print commands without executing")
     main(parser.parse_args())

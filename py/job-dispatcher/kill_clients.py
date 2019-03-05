@@ -1,9 +1,9 @@
-from sys import argv
 from shlex import split
 from subprocess import check_output, Popen, PIPE, DEVNULL
 from multiprocessing import Pool
 from collections import OrderedDict
 from operator import itemgetter
+from argparse import ArgumentParser
 from tqdm import tqdm
 
 import logging
@@ -86,7 +86,7 @@ def fix_messed_up_terminal():
     _, _ = child.communicate()
 
 
-def main(user, job_name, where):
+def get_machine_names(where):
     cpu_machines = ['vision%02d' % e for e in range(1, 39)]
     gpu_machines = ['visiongpu%02d' % e for e in range(1, 40)]
     if where == 'cgpu':
@@ -97,10 +97,15 @@ def main(user, job_name, where):
         machine_names = gpu_machines
     else:
         raise NotImplementedError(where)
+    return machine_names
+
+
+def main(args):
+    machine_names = get_machine_names(args.where)
 
     args = []
     for m in machine_names:
-        args.append((m, user, job_name))
+        args.append((m, args.user, args.job_name))
 
     pool = Pool()
     results = list(tqdm(pool.imap_unordered(kill_machine, args), total=len(args)))
@@ -117,4 +122,12 @@ def main(user, job_name, where):
 
 
 if __name__ == '__main__':
-    main(*argv[1:])
+    parser = ArgumentParser(description="Kill jobs dispatched across machines")
+    parser.add_argument('user', type=str, help="Whose processes to kill")
+    parser.add_argument('job_name', type=str, help=(
+        "Used to identify processes to kill, in addition to `exec_client` "
+        "If the client executes `python render.py ...`, "
+        "then use `render.py` for this argument."
+    ))
+    parser.add_argument('where', type=str, help="cpu | gpu | cgpu")
+    main(parser.parse_args())
