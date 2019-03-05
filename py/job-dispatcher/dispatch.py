@@ -157,5 +157,5 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser(description="Dispatch jobs to machines")
     parser.add_argument('config_file', type=str,
-                        help="Path to the configuration file")
+                        help="path to the configuration file")
     main(parser.parse_args())

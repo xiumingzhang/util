@@ -3,7 +3,7 @@ from shlex import split
 from multiprocessing import Pool
 from subprocess import Popen
 from socket import gethostname
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tqdm import tqdm
 
 
@@ -72,15 +72,15 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser()
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('cmds_file', type=str, help="path to cmds_file")
     parser.add_argument('expects_file', type=str, help="path to expects_file")
-    parser.add_argument('-t', type=int,
-                        help="Number of threads per machine", default=-1)
-    parser.add_argument('-p', type=int,
-                        help="Update the progress bar every N jobs", default=1)
-    parser.add_argument('-q', type=int,
-                        help="Quit after N jobs to test on small batches", default=-1)
+    parser.add_argument('-t', type=int, default=-1,
+                        help="number of threads per machine")
+    parser.add_argument('-p', type=int, default=1,
+                        help="update the progress bar every N jobs")
+    parser.add_argument('-q', type=int, default=-1,
+                        help="quit after N jobs to test on small batches")
     parser.add_argument('-d', action='store_true',
-                        help="Print command without executing")
+                        help="print command without executing")
     main(parser.parse_args())

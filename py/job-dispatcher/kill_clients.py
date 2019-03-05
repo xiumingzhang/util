@@ -3,7 +3,7 @@ from subprocess import check_output, Popen, PIPE, DEVNULL
 from multiprocessing import Pool
 from collections import OrderedDict
 from operator import itemgetter
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tqdm import tqdm
 
 import logging
@@ -122,12 +122,17 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description="Kill jobs dispatched across machines")
-    parser.add_argument('user', type=str, help="Whose processes to kill")
+    parser = ArgumentParser(
+        formatter_class=ArgumentDefaultsHelpFormatter,
+        description="Kill jobs dispatched across machines",
+    )
     parser.add_argument('job_name', type=str, help=(
-        "Used to identify processes to kill, in addition to `exec_client` "
-        "If the client executes `python render.py ...`, "
-        "then use `render.py` for this argument."
+        "used to identify processes to kill, in addition to `exec_client`. "
+        "If the client executes `python render.py ...`, then you can use "
+        "`render.py` for this argument."
     ))
-    parser.add_argument('where', type=str, help="cpu | gpu | cgpu")
+    parser.add_argument('--user', type=str, default='xiuming',
+                        help="whose processes to kill")
+    parser.add_argument('--where', type=str, default='cpu',
+                        help="which machines? Accepted values: cpu, gpu, cgpu")
     main(parser.parse_args())
