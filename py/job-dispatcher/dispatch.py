@@ -151,8 +151,7 @@ def main(args):
         "\n".join(['\t' + x for x in split(cmds[0])])
     xg.ask_to_proceed(msg, level='info')
 
-    send_jobs(machine_list, curr_dir, pool_dir, job_name,
-              exec_args=exec_args)
+    send_jobs(machine_list, curr_dir, pool_dir, job_name, exec_args=exec_args)
 
 
 if __name__ == '__main__':

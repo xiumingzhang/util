@@ -33,7 +33,7 @@ def main(args):
 
     # Run only the first N jobs?
     if args.q > 0:
-        cmds_all = cmds_all[0:args.q]
+        cmds_all = cmds_all[:args.q]
 
     # Decide which commands to run according to what to expect
     # and what already exists
@@ -56,12 +56,16 @@ def main(args):
         return
 
     # Send jobs to p
-    with tqdm(total=int(len(job_args) / args.p), desc=hostname) as pbar:
-        cnt = 0
-        for i, _ in enumerate(p.imap_unordered(job, job_args)):
-            cnt += 1
-            if cnt % args.p == 0:
-                pbar.update()
+    n_jobs = len(job_args)
+    if n_jobs == 0:
+        print("%s: No jobs" % hostname)
+    else:
+        with tqdm(total=int(n_jobs / args.p), desc=hostname) as pbar:
+            cnt = 0
+            for i, _ in enumerate(p.imap_unordered(job, job_args)):
+                cnt += 1
+                if cnt % args.p == 0:
+                    pbar.update()
 
     p.close()
     p.join()
