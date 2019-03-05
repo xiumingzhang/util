@@ -3,8 +3,8 @@
 from os.path import join
 
 
-params_h = open('./para/job.params', 'w')
-expects_h = open('./para/job.expects', 'w')
+params_h = open('./job.params', 'w')
+expects_h = open('./job.expects', 'w')
 
 out_dir = ''
 
