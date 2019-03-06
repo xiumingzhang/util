@@ -6,9 +6,11 @@ April 2018
 """
 
 import sys
-from os.path import abspath, join
+from os import makedirs
+from os.path import abspath, join, exists, dirname
 import re
 from glob import glob
+import numpy as np
 
 import config
 logger, thisfile = config.create_logger(abspath(__file__))
@@ -93,6 +95,10 @@ def sortglob(directory, filename, exts, ext_ignore_case=False):
         ext_ignore_case: Whether to ignore case for extensions
             Boolean
             Optional; defaults to False
+
+    Returns:
+        files_sorted: Sorted list of files globbed
+            List of strings
     """
     ext_list = []
     for ext in exts:
@@ -105,7 +111,8 @@ def sortglob(directory, filename, exts, ext_ignore_case=False):
     files = []
     for ext in ext_list:
         files += glob(join(directory, filename + ext))
-    return sorted(files)
+    files_sorted = sorted(files)
+    return files_sorted
 
 
 def ask_to_proceed(msg, level='warning'):
@@ -135,3 +142,58 @@ def ask_to_proceed(msg, level='warning'):
             logger.error("Enter only y or n!")
     if response == 'n':
         sys.exit()
+
+
+def load_if_existent(data_f, fallback=None):
+    """
+    Load the data file if it exists. Otherwise, if fallback provided,
+        call fallback and save its return
+
+    Args:
+        data_f: Path to the data file, whose extension will be used for deciding
+            how to load the data
+            String
+        fallback: Fallback function if data file doesn't exist, whose return will
+            be saved to <data_f> for future use
+            function that doesn't take arguments. Can easily construct one with
+                `fallback_func = lambda: your_fancy_func(var0, var1)`
+            Optional; defaults to None
+
+    Returns:
+        data: Data loaded if existent; otherwise, fallback's return or
+            None if fallback is not provided
+    """
+    logger_name = thisfile + '->load_if_existent()'
+
+    # Decide data file type
+    ext = data_f.split('.')[-1].lower()
+    if ext == 'npy':
+        load_func = np.load
+        save_func = np.save
+    elif ext == 'npz':
+        load_func = np.load
+        save_func = np.savez
+    else:
+        raise NotImplementedError(ext)
+
+    # Load or call fallback
+    if exists(data_f):
+        data = load_func(data_f)
+        msg = "Loaded: "
+    else:
+        msg = "Non-existent, "
+        if fallback is None:
+            data = None
+            msg += "and fallback not provided: "
+        else:
+            data = fallback()
+            out_dir = dirname(data_f)
+            if not exists(out_dir):
+                makedirs(out_dir)
+            save_func(data_f, data)
+            msg += "but called fallback and saved its return: "
+    msg += data_f
+
+    logger.name = logger_name
+    logger.info(msg)
+    return data
