@@ -156,7 +156,7 @@ def load_if_existent(data_f, fallback=None):
         fallback: Fallback function if data file doesn't exist, whose return will
             be saved to <data_f> for future use
             function that doesn't take arguments. Can easily construct one with
-                `fallback_func = lambda: your_fancy_func(var0, var1)`
+                `fallback=lambda: your_fancy_func(var0, var1)`
             Optional; defaults to None
 
     Returns:
