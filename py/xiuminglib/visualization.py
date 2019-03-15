@@ -298,6 +298,7 @@ def matrix_as_image(arr, outpath=None, gamma=None):
     dtype = 'uint8'
     dtype_max = np.iinfo(dtype).max
 
+    arr = arr.astype(float)
     if arr.ndim == 2:
         arr = arr.reshape(arr.shape + (1,))
     elif arr.ndim == 3:
