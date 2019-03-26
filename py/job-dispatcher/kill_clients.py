@@ -1,3 +1,5 @@
+from sys import path
+from os.path import realpath
 from shlex import split
 from subprocess import check_output, Popen, PIPE, DEVNULL
 from multiprocessing import Pool
@@ -6,9 +8,8 @@ from operator import itemgetter
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tqdm import tqdm
 
-import logging
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
-logging.basicConfig(level=logging.INFO)
+path.append(realpath('../'))
+from config import create_logger
 
 
 def ping_ok(machine_name):
@@ -114,11 +115,14 @@ def main(args):
 
     fix_messed_up_terminal()
 
+    logger, thisfile = create_logger(realpath(__file__))
+    logger.name = thisfile
+
     # Results returned out-of-order
     for machine_name, msgs in sorted(results, key=itemgetter(0)):
         for (_, level), msg in msgs.items():
-            logging_print = getattr(logging, level)
-            logging_print(msg, machine_name)
+            logger_print = getattr(logger, level)
+            logger_print(msg, machine_name)
 
 
 if __name__ == '__main__':

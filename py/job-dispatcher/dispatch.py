@@ -1,3 +1,4 @@
+from sys import path
 from shlex import split
 from subprocess import Popen
 from random import shuffle
@@ -8,15 +9,11 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 from xiuminglib import general as xg
 
-import logging
-import logging_colorer # noqa: F401 # pylint: disable=unused-import
-logging.basicConfig(level=logging.INFO)
+path.append(realpath('../'))
+from config import create_logger
 
 
-exec_client = join(dirname(realpath(__file__)), 'exec_client.py')
-
-
-def send_jobs(machine_list, curr_dir, pool_dir, prefix, exec_args=''):
+def send_jobs(machine_list, curr_dir, pool_dir, prefix, exec_client, exec_args=''):
     # Generate SSH commands
     cmds = []
     for i, x in enumerate(machine_list):
@@ -135,7 +132,10 @@ def main(args):
     pool_dir = join(curr_dir, config_job['pool_dir'])
     rmtree(pool_dir, ignore_errors=True)
     makedirs(pool_dir)
-    logging.info("See stdout and stderr at\n%s", pool_dir)
+
+    logger, thisfile = create_logger(realpath(__file__))
+    logger.name = thisfile
+    logger.info("See stdout and stderr at\n%s", pool_dir)
 
     exec_args = gen_exec_args(config_opt)
 
@@ -151,7 +151,8 @@ def main(args):
         "\n".join(['\t' + x for x in split(cmds[0])])
     xg.ask_to_proceed(msg, level='info')
 
-    send_jobs(machine_list, curr_dir, pool_dir, job_name, exec_args=exec_args)
+    exec_client = join(dirname(realpath(__file__)), 'exec_client.py')
+    send_jobs(machine_list, curr_dir, pool_dir, job_name, exec_client, exec_args=exec_args)
 
 
 if __name__ == '__main__':
