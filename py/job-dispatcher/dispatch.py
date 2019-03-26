@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 from xiuminglib import general as xg
 
-path.append(realpath('../'))
+path = [realpath('../')] + path
 from config import create_logger
 
 
@@ -59,6 +59,7 @@ def split_jobs(cmds, cmd_expects, n_machines, pool_dir, prefix):
 def gen_full_cmds(cmd_prefix, params_file, expect_file):
     with open(params_file) as f:
         params = f.readlines()
+    assert params, "Parameter file is empty"
     if expect_file is None:
         expects = None
     else:

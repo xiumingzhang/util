@@ -8,7 +8,7 @@ from operator import itemgetter
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tqdm import tqdm
 
-path.append(realpath('../'))
+path = [realpath('../')] + path
 from config import create_logger
 
 
