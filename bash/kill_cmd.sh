@@ -14,6 +14,10 @@ for id in {1..38}; do
     ssh "$user@$m.csail.mit.edu" "pkill -9 -f \"$1\"" &
     echo "$1: killed on $m"
 done
+for id in 'asia' 'africa' 'america' 'antarctica' 'australia' 'europe' 'monday' 'tuesday' 'wednesday' 'thursday' 'friday' 'saturday'; do
+    ssh "$user@$id.csail.mit.edu" "pkill -9 -f \"$1\"" &
+    echo "$1: killed on $id"
+done
 
 # GPU
 for id in {2..43}; do
